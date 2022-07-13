@@ -4,6 +4,7 @@
 #include <iostream>
 #include <iomanip>
 #include <cassert>
+#include <sstream>
 
 using namespace std;
 
@@ -45,8 +46,14 @@ int nunique = 0;
 int char_indices[128]; // 1 based index of the character, or -1 if not used.
 
 int ncells;
-//Cell* headers;
+
+//#define FIXED_CELLS
+#ifndef  FIXED_CELLS
+Cell* headers;
+#else
 Cell headers[39];
+#endif
+
 Cell* cells;
 
 void get_counts(const char *pstrings[])
@@ -93,8 +100,11 @@ void get_counts(const char *pstrings[])
 
 void init_cells(const char* pstrings[])
 {
-	assert(ncells == 39);
-	//headers = new Cell[ncells];
+#ifdef FIXED_CELLS
+	assert(ncells <= 39);
+#else
+	headers = new Cell[ncells];
+#endif
 
 	headers[0].i = 0;
 	headers[0].name = -1;
@@ -190,6 +200,13 @@ void init_cells(const char* pstrings[])
 
 }
 
+void destroy_cells()
+{
+#ifndef FIXED_CELLS
+	delete[] headers;
+#endif
+}
+
 void hide(int p)
 {
 	int q = p + 1;
@@ -271,7 +288,7 @@ void uncover(int i)
 	}
 }
 
-void print(ostream &stream)
+void format(ostream &stream)
 {
 	stream << "Using " << nstrings << " strings with " << nunique << " characters and " << nstring_chars << " total chracters." << endl;
 	stream << "Gives " << ncells << " cells." << endl;
@@ -343,16 +360,157 @@ void print(ostream &stream)
 	delete[] separator;
 }
 
-void exact_cover(const char* pstrings[])
+void print()
+{
+	ostringstream  s;
+	format(s);
+	cout << s.str();
+}
+
+bool print_diff(string s1, string s2)
+{
+	const char* p1 = s1.c_str();
+	const char* p2 = s2.c_str();
+
+	string result;
+	bool equal = true;
+	while (*p1 && *p2)
+	{
+		if (*p1 == *p2)
+			result.push_back(*p1);
+		else
+		{
+			result.push_back('*');
+			equal = false;
+		}
+		p1++;
+		p2++;
+	}
+	while (*p1)
+	{
+		equal = false;
+		result.push_back(*p1++);
+	}
+	while (*p1)
+	{
+		equal = false;
+		result.push_back(*p2++);
+	}
+
+	if (!equal)
+	{
+		cout << "String differ\n";
+		cout << result;
+	}
+	else
+	{
+		//cout << "String the same!\n";
+	}
+
+	return equal;
+}
+
+bool do_level()
+{
+	int i = headers[0].rlink;
+	if (i == 0)
+		return true;
+	cover(i);
+
+	int x = cells[i].dlink;
+
+	while (x != i)
+	{
+		int p = x + 1;
+		while (p != x)
+		{
+			int j = cells[p].top;
+			if (j <= 0)
+				p = cells[p].ulink;
+			else
+			{
+				cover(j);
+				p++;
+			}
+		}
+
+		if (do_level())
+		{
+			while (cells[x].top > 0)
+			{
+				cout << headers[cells[x].top].name << " ";
+				x++;
+			}
+			cout << endl;
+			return true;
+		}
+
+		p = x - 1;
+		while (p != x)
+		{
+			int j = cells[p].top;
+			if (j <= 0)
+				p = cells[p].dlink;
+			else
+			{
+				uncover(j);
+				p--;
+			}
+		}
+		x = cells[x].dlink;
+	}
+	uncover(i);
+	return false;
+
+}
+
+bool exact_cover(const char* pstrings[])
 {
 	get_counts(pstrings);
 	init_cells(pstrings);
 
-	print(cout);
+	ostringstream  before, after;
+	format(before);
+	cout << before.str();
 
-	cover(2);
-	uncover(2);
-	print(cout);
+	bool rval = do_level();
+
+	format(after);
+	cout << after.str();
+
+	assert(_CrtCheckMemory());
+
+	destroy_cells();
+
+	return rval;
+}
+
+
+bool test_cover_uncover(const char* pstrings[])
+{
+	get_counts(pstrings);
+	init_cells(pstrings);
+
+	ostringstream  before, after;
+	format(before);
+
+	bool pass = true;
+	for (int i = 1; i <= nunique; i++)
+	{
+		cover(i);
+		uncover(i);
+		format(after);
+		if (!print_diff(before.str(), after.str()))
+		{
+			if (pass == true)
+			{
+				pass = false;
+				cout << before.str();
+			}
+			cout << after.str();
+		}
+	}
+	return pass;
 }
 
 
@@ -364,18 +522,37 @@ int main()
 {
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF | _CRTDBG_CHECK_ALWAYS_DF);
 
-	const char* strings[] =
-	{
-		"ce",
-		"adg",
-		"bcf",
-		"adf",
-		"bg",
-		"deg",
-		nullptr
-	};
-	exact_cover(strings);
 
+	bool b;
+	{
+		const char* strings[] =
+		{
+			"a",
+			//"a", "b",
+			//"a","ab","c",
+			//"ce", "adg", "bcf",	"adf", "bg", "deg",
+			//"147", "14", "457", "356", "2367", "27",
+			nullptr
+		};
+		b = exact_cover(strings);
+		assert(b);
+		cout << b << endl;
+	}
+	/*
+	{
+		const char* strings[] =
+		{
+			"ce",
+			"adg",
+			"bcf",
+			"adf",
+			"bg",
+			"deg",
+			nullptr
+		};
+		test_cover_uncover(strings);
+	}
+	*/
 
     std::cout << "Done!\n";
 }
