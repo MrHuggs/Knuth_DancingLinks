@@ -8,7 +8,8 @@
 
 using namespace std;
 
-
+///////////////////////////////////////////////////////////////////////////////
+// Cell structure to match 7.2.2.1 Table 1:
 struct Cell
 {
 	union
@@ -37,29 +38,28 @@ struct Cell
 	};
 
 };
+///////////////////////////////////////////////////////////////////////////////
+int nstrings;			// Number of strings passed in
+int nstring_chars;		// Total number of characters in all strings
+int nunique;			// Number of unique characters.
 
-int nstrings;
-int nstring_chars;
-int nunique;
+// Looking table to allow finding the index of a character. Contains the 1 based index of the character,
+// or -1 if the character is not not used.
+int char_indices[128]; 
 
-int char_indices[128]; // 1 based index of the character, or -1 if not used.
-
-int ncells;
-
-//#define FIXED_CELLS
-#ifndef  FIXED_CELLS
-Cell* headers;
-#else
-Cell headers[39];
-#endif
-
+int ncells;		// Total number of cells:
+Cell* headers;	// Pointer to the headers (i/name/llink/rlink) in Table 1.
 Cell* cells;
-
+///////////////////////////////////////////////////////////////////////////////
+// First step of analysis: Find out how many strings & unique characters there are:
 void get_counts(const char *pstrings[])
 {
 	nstrings = nstring_chars = nunique = 0;
-	memset(char_indices, 0xff, sizeof(char_indices));
 	const char* pc;
+
+	// Reset the indices array. First step is marking characters that are used:
+	memset(char_indices, 0xff, sizeof(char_indices));
+
 	while((pc = pstrings[nstrings]) != nullptr)
 	{
 		nstrings++;
@@ -75,6 +75,7 @@ void get_counts(const char *pstrings[])
 		}
 	}
 
+	// Populate the reverse looking table:
 	// Indices should be assigned in sort order:
 	int char_idx = 1;
 	int* indices = char_indices;
@@ -89,6 +90,8 @@ void get_counts(const char *pstrings[])
 	assert(char_idx == nunique + 1);
 
 
+	// Calculate the total number of cells needed.
+	//
 	// An example from page 67:
 	// 7 chars in 6 strings with 16 total chars = 8 + 31 = 39 cells
 	//                      = 1 + 7 (headers)
@@ -96,20 +99,18 @@ void get_counts(const char *pstrings[])
 	//                      + 1 + 16  + 6
 	ncells = 2 * (1 + nunique)  + 1 + nstring_chars + nstrings;
 }
-
+///////////////////////////////////////////////////////////////////////////////
+// Initialized the header & cell data as in Table 1:
 void init_cells(const char* pstrings[])
 {
-#ifdef FIXED_CELLS
-	assert(ncells <= 39);
-#else
 	headers = new Cell[ncells];
-#endif
 
 	headers[0].i = 0;
 	headers[0].name = -1;
 	headers[0].llink = nunique;
 	headers[0].rlink = 1;
 
+	// Fill out the headers, starting with the special 0 elements:
 	int index;
 	for (index = 1; index <= nunique; index++)
 	{
@@ -124,13 +125,15 @@ void init_cells(const char* pstrings[])
 			headers[char_indices[nchar]].name = (char)nchar;
 	}
 
+	//First line of the cell data:
 
 	cells = headers + nunique + 1;
 	memset(cells, 0xff, sizeof(Cell));
+
+	// Special 0 element:
 	cells[0].x = 0;
 
 	index = 1;
-
 	int x = 1;
 	for (x = 1; x <= nunique; x++)
 	{
@@ -140,7 +143,7 @@ void init_cells(const char* pstrings[])
 		index++;
 	}
 
-	// First spacer
+	// Remaining lines, starting with the special spacer:
 	cells[index].x = index;
 	cells[index].top = 0;
 	cells[index].ulink = cells[index].dlink = -1;
@@ -184,7 +187,7 @@ void init_cells(const char* pstrings[])
 			pc++;
 		}
 
-		// Add the spacer
+		// Add the spacer at the end:
 		cells[index].x = index;
 		cells[index].top = idx_spacer--;
 		cells[index].ulink = prev_first;
@@ -197,14 +200,14 @@ void init_cells(const char* pstrings[])
 	}
 
 }
-
+///////////////////////////////////////////////////////////////////////////////
+// Free any allocated memory:
 void destroy_cells()
 {
-#ifndef FIXED_CELLS
 	delete[] headers;
-#endif
 }
-
+///////////////////////////////////////////////////////////////////////////////
+// hide/cover/uncover/unhide functions:
 void hide(int p)
 {
 	int q = p + 1;
@@ -228,6 +231,7 @@ void hide(int p)
 		}
 	}
 }
+
 
 void cover(int i)
 {
@@ -285,13 +289,13 @@ void uncover(int i)
 		p = cells[p].ulink;
 	}
 }
-
+///////////////////////////////////////////////////////////////////////////////
+// Helper to output a table that looks like Table 1 in 7.2.2.1:
 void format(ostream &stream)
 {
 	stream << "Using " << nstrings << " strings with " << nunique << " characters and " << nstring_chars << " total chracters." << endl;
 	stream << "Gives " << ncells << " cells." << endl;
 
-	// Code to put out a table that looks like Table 1 in 7.2.2.1:
 
 	int nsep = (nunique + 1) * 5 + 8;
 	char* separator = new char[nsep + 2];
@@ -354,7 +358,6 @@ void format(ostream &stream)
 		stream << separator;
 	}
 
-
 	delete[] separator;
 }
 
@@ -364,7 +367,9 @@ void print()
 	format(s);
 	cout << s.str();
 }
-
+///////////////////////////////////////////////////////////////////////////////
+// Helper to diff to strings. Useful for the comparing the output of fomat
+// above.
 bool print_diff(string s1, string s2)
 {
 	const char* p1 = s1.c_str();
@@ -407,6 +412,9 @@ bool print_diff(string s1, string s2)
 
 	return equal;
 }
+///////////////////////////////////////////////////////////////////////////////
+// States of the algorithm. Corresponds to X1-X8.
+// Note that some of these could be combined.
 enum AlgXStates
 {
 	ax_Initialize,
@@ -419,22 +427,25 @@ enum AlgXStates
 	ax_LeaveLevel,
 	ax_Cleanup,
 };
-
+///////////////////////////////////////////////////////////////////////////////
+//
+// Main function: print the exact cover of a null-terminated array of string.
+//
 bool exact_cover(const char* pstrings[])
 {
 	assert(_CrtCheckMemory());
 	AlgXStates state = ax_Initialize;
-
 
 	bool rval = false;
 
 	get_counts(pstrings);
 	init_cells(pstrings);
 
-	// Display the lind table:
-	//print(); 
+	//print();		// If you want to see Table 1.
 
 	int i, p, l;
+
+	// This stores the index of our choice at each level.
 	int *x = new int[nstrings];
 
 	for (;;)
@@ -528,9 +539,15 @@ bool exact_cover(const char* pstrings[])
 		case ax_Cleanup:
 			if (rval == true)
 			{
+				// To output the actual strings:
 				for (int lout = 0; lout < l; lout++)
 				{
+					// c will be the cell index of the first character in the string we chose.
+					// that was chosen. Output the character corresponding to that cell, and move to the
+					// next character (which has index+1). Continue until we hit the next spacer
+					// which will have top <= 0.
 					int c = x[lout];
+
 					while (cells[c].top > 0)
 					{
 						cout << headers[cells[c].top].name << " ";
@@ -551,85 +568,8 @@ bool exact_cover(const char* pstrings[])
 		}
 	}
 }
-
-
-
-bool do_level()
-{
-	int i = headers[0].rlink;
-	if (i == 0)
-		return true;
-	cover(i);
-
-	int x = cells[i].dlink;
-
-	while (x != i)
-	{
-		int p = x + 1;
-		while (p != x)
-		{
-			int j = cells[p].top;
-			if (j <= 0)
-				p = cells[p].ulink;
-			else
-			{
-				cover(j);
-				p++;
-			}
-		}
-
-		if (do_level())
-		{
-			while (cells[x].top > 0)
-			{
-				cout << headers[cells[x].top].name << " ";
-				x++;
-			}
-			cout << endl;
-			return true;
-		}
-
-		p = x - 1;
-		while (p != x)
-		{
-			int j = cells[p].top;
-			if (j <= 0)
-				p = cells[p].dlink;
-			else
-			{
-				uncover(j);
-				p--;
-			}
-		}
-		x = cells[x].dlink;
-	}
-	uncover(i);
-	return false;
-
-}
-
-bool _exact_cover(const char* pstrings[])
-{
-	get_counts(pstrings);
-	init_cells(pstrings);
-
-	ostringstream  before, after;
-	format(before);
-	cout << before.str();
-
-	bool rval = do_level();
-
-	format(after);
-	cout << after.str();
-
-	assert(_CrtCheckMemory());
-
-	destroy_cells();
-
-	return rval;
-}
-
-
+///////////////////////////////////////////////////////////////////////////////
+// Unit test for cover/uncover.
 bool test_cover_uncover(const char* pstrings[])
 {
 	get_counts(pstrings);
@@ -657,7 +597,21 @@ bool test_cover_uncover(const char* pstrings[])
 	return pass;
 }
 
-
+void unit_test()
+{
+	const char* strings[] =
+	{
+		"ce",
+		"adg",
+		"bcf",
+		"adf",
+		"bg",
+		"deg",
+		nullptr
+	};
+	test_cover_uncover(strings);
+}
+///////////////////////////////////////////////////////////////////////////////
 #define _CRTDBG_MAP_ALLOC
 #include <stdlib.h>
 #include <crtdbg.h>
@@ -665,43 +619,28 @@ bool test_cover_uncover(const char* pstrings[])
 int main()
 {
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF | _CRTDBG_CHECK_ALWAYS_DF);
-
+	unit_test();
 
 	bool b;
-	{
-		const char * strings[] =
-		{
-			"a", nullptr,
-			"a", "b", nullptr,
-			"a","ab","c", nullptr,
-			"ce", "adg", "bcf",	"adf", "bg", "deg", nullptr,
-			"147", "14", "457", "356", "2367", "27", nullptr,
-			nullptr
-		};
-		const char** pstrings = strings;
-		while (*pstrings)
-		{
-			b = exact_cover(pstrings);
-			assert(b);
-			while (*(pstrings++));
-		}
-		cout << b << endl;
-	}
-	/*
-	{
-		const char* strings[] =
-		{
-			"ce",
-			"adg",
-			"bcf",
-			"adf",
-			"bg",
-			"deg",
-			nullptr
-		};
-		test_cover_uncover(strings);
-	}
-	*/
 
-    std::cout << "Done!\n";
+	const char * strings[] =
+	{
+		"a", nullptr,
+		"a", "b", nullptr,
+		"a","ab","c", nullptr,
+		"ce", "adg", "bcf",	"adf", "bg", "deg", nullptr,
+		"147", "14", "457", "356", "2367", "27", nullptr,
+		nullptr
+	};
+	const char** pstrings = strings;
+	while (*pstrings)
+	{
+		b = exact_cover(pstrings);
+		assert(b);
+		while (*(pstrings++));
+	}
+	cout << b << endl;
+
+
+    cout << "Done!\n";
 }
