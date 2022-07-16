@@ -38,10 +38,9 @@ struct Cell
 
 };
 
-int nstrings = 0;
-int nstring_chars = 0;
-int nunique = 0;
-
+int nstrings;
+int nstring_chars;
+int nunique;
 
 int char_indices[128]; // 1 based index of the character, or -1 if not used.
 
@@ -58,6 +57,7 @@ Cell* cells;
 
 void get_counts(const char *pstrings[])
 {
+	nstrings = nstring_chars = nunique = 0;
 	memset(char_indices, 0xff, sizeof(char_indices));
 	const char* pc;
 	while((pc = pstrings[nstrings]) != nullptr)
@@ -89,12 +89,11 @@ void get_counts(const char *pstrings[])
 	assert(char_idx == nunique + 1);
 
 
-	// From page 67:
+	// An example from page 67:
 	// 7 chars in 6 strings with 16 total chars = 8 + 31 = 39 cells
 	//                      = 1 + 7 (headers)
 	//						+ 1 + 7 (length)
 	//                      + 1 + 16  + 6
-
 	ncells = 2 * (1 + nunique)  + 1 + nstring_chars + nstrings;
 }
 
@@ -131,7 +130,6 @@ void init_cells(const char* pstrings[])
 	cells[0].x = 0;
 
 	index = 1;
-
 
 	int x = 1;
 	for (x = 1; x <= nunique; x++)
@@ -409,6 +407,152 @@ bool print_diff(string s1, string s2)
 
 	return equal;
 }
+enum AlgXStates
+{
+	ax_Initialize,
+	ax_EnterLevel,
+	ax_Choose,
+	ax_Cover,
+	ax_TryX,
+	ax_TryAgain,
+	ax_Backtrack,
+	ax_LeaveLevel,
+	ax_Cleanup,
+};
+
+bool exact_cover(const char* pstrings[])
+{
+	assert(_CrtCheckMemory());
+	AlgXStates state = ax_Initialize;
+
+
+	bool rval = false;
+
+	get_counts(pstrings);
+	init_cells(pstrings);
+
+	// Display the lind table:
+	//print(); 
+
+	int i, p, l;
+	int *x = new int[nstrings];
+
+	for (;;)
+	{
+		switch (state)
+		{
+		case ax_Initialize:
+			l = 0;
+			state = ax_EnterLevel;
+			break;
+
+		case ax_EnterLevel:
+			if (headers[0].rlink == 0)
+			{
+				rval = true;
+				state = ax_Cleanup;
+			}
+			else
+				state = ax_Choose;
+			break;
+
+		case ax_Choose:
+			i = headers[0].rlink;
+			state = ax_Cover;
+			break;
+
+		case ax_Cover:
+			cover(i);
+			x[l] = cells[i].dlink;
+			state = ax_TryX;
+			break;
+
+		case ax_TryX:
+			if (x[l] == i)
+			{
+				state = ax_Backtrack;
+				break;
+			}
+
+			p = x[l] + 1;
+			while (p != x[l])
+			{
+				int j = cells[p].top;
+				if (j <= 0)
+					p = cells[p].ulink;
+				else
+				{
+					cover(j);
+					p++;
+				}
+			}
+			l++;
+			state = ax_EnterLevel;
+			break;
+
+		case ax_TryAgain:
+			p = x[l] - 1;
+
+			while (p != x[l])
+			{
+				int j = cells[p].top;
+				if (j <= 0)
+					p = cells[p].dlink;
+				else
+				{
+					uncover(j);
+					p--;
+				}
+			}
+
+			i = cells[x[l]].top;
+			x[l] = cells[x[l]].dlink;
+			state = ax_TryX;
+			break;
+		case ax_Backtrack:
+			uncover(i);
+			state = ax_LeaveLevel;
+			break;
+		case ax_LeaveLevel:
+			if (l == 0)
+			{
+				state = ax_Cleanup;
+			}
+			else
+			{
+				l--;
+				state = ax_TryAgain;
+			}
+			break;
+
+		case ax_Cleanup:
+			if (rval == true)
+			{
+				for (int lout = 0; lout < l; lout++)
+				{
+					int c = x[lout];
+					while (cells[c].top > 0)
+					{
+						cout << headers[cells[c].top].name << " ";
+						c++;
+					}
+					cout << endl;
+				}
+			}
+			else
+				cout << "FAILED!\n";
+
+			assert(_CrtCheckMemory());
+
+			delete[] x;
+			destroy_cells();
+
+			return rval;
+		}
+	}
+}
+
+
 
 bool do_level()
 {
@@ -464,7 +608,7 @@ bool do_level()
 
 }
 
-bool exact_cover(const char* pstrings[])
+bool _exact_cover(const char* pstrings[])
 {
 	get_counts(pstrings);
 	init_cells(pstrings);
@@ -525,17 +669,22 @@ int main()
 
 	bool b;
 	{
-		const char* strings[] =
+		const char * strings[] =
 		{
-			"a",
-			//"a", "b",
-			//"a","ab","c",
-			//"ce", "adg", "bcf",	"adf", "bg", "deg",
-			//"147", "14", "457", "356", "2367", "27",
+			"a", nullptr,
+			"a", "b", nullptr,
+			"a","ab","c", nullptr,
+			"ce", "adg", "bcf",	"adf", "bg", "deg", nullptr,
+			"147", "14", "457", "356", "2367", "27", nullptr,
 			nullptr
 		};
-		b = exact_cover(strings);
-		assert(b);
+		const char** pstrings = strings;
+		while (*pstrings)
+		{
+			b = exact_cover(pstrings);
+			assert(b);
+			while (*(pstrings++));
+		}
 		cout << b << endl;
 	}
 	/*
