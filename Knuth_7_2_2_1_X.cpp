@@ -5,6 +5,7 @@
 #include <iomanip>
 #include <cassert>
 #include <sstream>
+#include <chrono>
 
 using namespace std;
 
@@ -361,11 +362,23 @@ void format(ostream &stream)
 	delete[] separator;
 }
 
+// An immediate version of format, which you could call inside the debugger.
 void print()
 {
 	ostringstream  s;
 	format(s);
-	cout << s.str();
+	std::string str_result = s.str();
+
+	// Outputting very large strings inside the debugger sometimes has bad results,
+	// so output a line at a time.
+
+	istringstream istream(str_result);
+	std::string line;
+	while (std::getline(istream, line))
+	{
+		const char* pc = line.c_str();
+		puts(pc);
+	}
 }
 ///////////////////////////////////////////////////////////////////////////////
 // Helper to diff to strings. Useful for the comparing the output of fomat
@@ -542,17 +555,21 @@ bool exact_cover(const char* pstrings[])
 				// To output the actual strings:
 				for (int lout = 0; lout < l; lout++)
 				{
-					// c will be the cell index of the first character in the string we chose.
-					// that was chosen. Output the character corresponding to that cell, and move to the
-					// next character (which has index+1). Continue until we hit the next spacer
-					// which will have top <= 0.
+					// c will be the cell index of a character in the string we chose.
+					// Loop through the characters in the string as we do in hide.
 					int c = x[lout];
-
-					while (cells[c].top > 0)
+					int q = c;
+					do
 					{
-						cout << headers[cells[c].top].name << " ";
-						c++;
-					}
+						cout << headers[cells[q].top].name << " ";
+						
+						q++;
+						if (cells[q].top <= 0)
+						{
+							q = cells[q].ulink;		// We hit the spacer. ulink is start of the string.
+						}
+
+					} while (q != c);
 					cout << endl;
 				}
 			}
@@ -611,6 +628,25 @@ void unit_test()
 	};
 	test_cover_uncover(strings);
 }
+
+void large_problem()
+{
+	const char* strings[] = {
+	"svoxm", "shown", "ogipc", "hxmtq", "djxtf", "elroa", "hzytp", "gtnc", "zgwfc", "dvzwf", "oayuc", "rzgyt", "bgxtq", "jlxan", "oaqic", "jzxoq", "sdogw", "loafp", "dhlfc", "sdbkw", "drknu", "jogwt", "zvpe", "ehxgp", "sdev", "koznf", "dkvap", "jtqfp", "hjryu", "dejot", "sojf", "sekgw", "twrn", "ejvyt", "hjbpc", "lynqc", "dboaf", "hwad", "sejvp", "quev", "gwlk", "lzayc", "zgwym", "segyi", "mtkc", "jxfai", "shkyt", "odpc", "zlkc", "rtkn", "sjlnc", "boytu", "ohiv", "hbvwf", "egynt", "dvxaq", "jlwtq", "skgnp", "sjvzx", "dbgfp", "girp", "tuge", "stqip", "dehwq", "htvx", "hlkqc", "sfqui", "sqgy", "dhwmu", "bwuy", "vnquc", "moaf", "zbgv", "hwun", "drkxc", "xgyfp", "ehvnf", "wup", "seyip", "cbrx", "vxtui", "djrnf", "syvc", "ehrwy", "ehgxa", "dvzgu", "rxaqu", "ofev", "hten", "sganm", "zbwi", "zbuv", "rzwyt", "gwvh", "zxbc", "zxatu", "beh", "hrnfc", "qavc", "jlvwi", "slzxw", "vwmtp", "brmtc", "xqlc", "xqle", "sbzot", "sbzyc", "qikn", "sotq", "dblri", "jlaqu", "rgtp", "oqa", "sdhni", "bkgai", "mgit", "dhown", "gxytc", "zjnc", "djhmp", "jlrmf", "djlzg", "bkoqf", "sbhoq", "ognup", "jqtn", "oatup", "lvxwy", "oxgk", "minc", "vgin", "bjrnp", "euamf", "owytu", "sbomq", "jgupc", "sqvx", "hanmi", "bjkmc", "sayfc", "sehrg", "bowaq", "sqpx", "atfh", "zsrn", "dbvgm", "hlogt", "djoxg", "vozym", "duvc", "elrka", "dekzn", "rogmq", "ozek", "evznc", "kgwip", "owv", "sjknq", "bwqip", "juie", "dqan", "jqul", "zsfn", "dekou", "hiej", "mjuv",
+	nullptr
+	};
+
+	auto start = std::chrono::high_resolution_clock::now();
+
+	bool b = exact_cover(strings);
+
+	auto finish = std::chrono::high_resolution_clock::now();
+	assert(b);
+
+
+	auto ms = std::chrono::duration_cast<std::chrono::microseconds>(finish - start);
+	cout << "Large problem solution took: " << ms.count() << " microseconds\n";
+}
 ///////////////////////////////////////////////////////////////////////////////
 #define _CRTDBG_MAP_ALLOC
 #include <stdlib.h>
@@ -620,6 +656,8 @@ int main()
 {
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF | _CRTDBG_CHECK_ALWAYS_DF);
 	unit_test();
+
+	large_problem();
 
 	bool b;
 
