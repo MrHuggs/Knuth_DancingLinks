@@ -139,7 +139,14 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="AlgXPointer.cpp" />
     <ClCompile Include="Knuth_7_2_2_1_X.cpp" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="XStringValues.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="AlgXPointer.h" />
+    <ClInclude Include="Converters.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

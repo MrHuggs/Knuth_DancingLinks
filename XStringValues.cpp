@@ -1,19 +1,19 @@
-// Knuth_7_2_2_1_X.cpp : This file contains the 'main' function. Program execution begins and ends there.
+//
+// Algorithm modified to support string values (instead of just a char).
+//
 //
 #include <algorithm>
 #include <iostream>
 #include <iomanip>
 #include <cassert>
 #include <sstream>
+#include <unordered_set>
+#include <map>
 #include <chrono>
 
+#include "Converters.h"
 using namespace std;
 
-// From main.cpp:
-const char* small_char_problems[];
-const char* large_char_problem[];
-
-#include "Converters.h"
 ///////////////////////////////////////////////////////////////////////////////
 // Cell structure to match 7.2.2.1 Table 1:
 struct Cell
@@ -25,7 +25,7 @@ struct Cell
 	};
 	union
 	{
-		char name;
+		const char* pName;
 		int len;
 		int top;
 	};
@@ -45,13 +45,22 @@ struct Cell
 
 };
 ///////////////////////////////////////////////////////////////////////////////
-static int nstrings;			// Number of strings passed in
-static int nstring_chars;		// Total number of characters in all strings
-static int nunique;			// Number of unique characters.
+// Special comparator so we can make a map of string pointers eliminating
+// duplicates:
+struct CmpSame
+{
+	bool operator()(const char* p1, const char* p2) const
+	{
+		return strcmp(p1, p2) < 0;
+	}
+};
+///////////////////////////////////////////////////////////////////////////////
+static  int nsequences;
+static  int nsequence_items;		// Total number of characters in all strings
+static  int nunique_items;			// Number of unique characters.
 
-// Looking table to allow finding the index of a character. Contains the 1 based index of the character,
-// or -1 if the character is not not used.
-static int char_indices[128];
+static map<const char*, int, CmpSame>* pitem_indices;
+static map<int ,const char*>* pindex_items;
 
 static int ncells;		// Total number of cells:
 static Cell* headers;	// Pointer to the headers (i/name/llink/rlink) in Table 1.
@@ -63,43 +72,32 @@ static chrono::steady_clock::time_point setup_complete;
 static chrono::steady_clock::time_point run_complete;
 ///////////////////////////////////////////////////////////////////////////////
 // First step of analysis: Find out how many strings & unique characters there are:
-static void get_counts(const char *pstrings[])
+
+static void get_counts(const vector< vector<const char *> > &sequences)
 {
-	nstrings = nstring_chars = nunique = 0;
-	const char* pc;
+	nsequences = (int) sequences.size();
+	nsequence_items = 0;
 
-	// Reset the indices array. First step is marking characters that are used:
-	memset(char_indices, 0xff, sizeof(char_indices));
+	pitem_indices = new map<const char*, int, CmpSame>();
+	pindex_items = new map<int, const char*>();
 
-	while((pc = pstrings[nstrings]) != nullptr)
+	nunique_items = 0;
+
+	for (int i= 0; i < nsequences; i++)
 	{
-		nstrings++;
-		while (*pc)
+		const vector<const char*>& seq = sequences[i];
+		nsequence_items += (int) seq.size();
+
+		for (const char *pc : seq)
 		{
-			nstring_chars++;
-			if (char_indices[*pc] < 0)
+			if (pitem_indices->find(pc) == pitem_indices->end())
 			{
-				nunique++;
-				char_indices[*pc] = 0;
+				int id = nunique_items++ + 1;
+				(*pitem_indices)[pc] = id;
+				(*pindex_items)[id] = pc;
 			}
-			pc++;
 		}
 	}
-
-	// Populate the reverse looking table:
-	// Indices should be assigned in sort order:
-	int char_idx = 1;
-	int* indices = char_indices;
-	while (char_idx <= nunique)
-	{
-		if (*indices >= 0)
-		{
-			*indices = char_idx++;
-		}
-		indices++;
-	}
-	assert(char_idx == nunique + 1);
-
 
 	// Calculate the total number of cells needed.
 	//
@@ -108,37 +106,34 @@ static void get_counts(const char *pstrings[])
 	//                      = 1 + 7 (headers)
 	//						+ 1 + 7 (length)
 	//                      + 1 + 16  + 6
-	ncells = 2 * (1 + nunique)  + 1 + nstring_chars + nstrings;
+	ncells = 2 * (1 + nunique_items) + 1 + nsequence_items + nsequences;
 }
 ///////////////////////////////////////////////////////////////////////////////
 // Initialized the header & cell data as in Table 1:
-static void init_cells(const char* pstrings[])
+static void init_cells(const vector< vector<const char*> >& sequences)
 {
 	headers = new Cell[ncells];
 
 	headers[0].i = 0;
-	headers[0].name = -1;
-	headers[0].llink = nunique;
+	headers[0].pName = "";
+	headers[0].llink = nunique_items;
 	headers[0].rlink = 1;
 
 	// Fill out the headers, starting with the special 0 elements:
 	int index;
-	for (index = 1; index <= nunique; index++)
+	for (index = 1; index <= nunique_items; index++)
 	{
 		headers[index].i = index;
 		headers[index].llink = index - 1;
-		headers[index].rlink = (index + 1) % (nunique + 1);
+		headers[index].rlink = (index + 1) % (nunique_items + 1);
+		headers[index].pName = (*pindex_items)[index];
+
 	}
 
-	for (int nchar = 0; nchar < 128; nchar++)
-	{
-		if (char_indices[nchar] >= 0)
-			headers[char_indices[nchar]].name = (char)nchar;
-	}
 
 	//First line of the cell data:
 
-	cells = headers + nunique + 1;
+	cells = headers + nunique_items + 1;
 	memset(cells, 0xff, sizeof(Cell));
 
 	// Special 0 element:
@@ -146,7 +141,7 @@ static void init_cells(const char* pstrings[])
 
 	index = 1;
 	int x = 1;
-	for (x = 1; x <= nunique; x++)
+	for (x = 1; x <= nunique_items; x++)
 	{
 		cells[index].x = x;
 		cells[index].len = 0;
@@ -163,12 +158,12 @@ static void init_cells(const char* pstrings[])
 	int idx_spacer = -1;
 	int prev_first = index;		// First node after the previous spacer.
 
-	for (int idx_str = 0; idx_str < nstrings; idx_str++)
+	for (int idx_seq = 0; idx_seq < nsequences; idx_seq++)
 	{
-		const char* pc = pstrings[idx_str];
-		while (*pc)
+		const vector<const char*> ptr_vec = sequences[idx_seq];
+		for (auto pc : ptr_vec)
 		{
-			int idx_char = char_indices[*pc];
+			int idx_char = (*pitem_indices)[pc];
 
 			cells[index].x = index;
 			cells[index].top = idx_char;
@@ -216,6 +211,8 @@ static void init_cells(const char* pstrings[])
 static void destroy_cells()
 {
 	delete[] headers;
+	delete pitem_indices;
+	delete pindex_items;
 }
 ///////////////////////////////////////////////////////////////////////////////
 // hide/cover/uncover/unhide functions:
@@ -264,7 +261,7 @@ static void cover(int i)
 static void unhide(int p)
 {
 	int q = p - 1;
-	
+
 	while (q != p)
 	{
 		int x = cells[q].top;
@@ -302,13 +299,13 @@ static void uncover(int i)
 }
 ///////////////////////////////////////////////////////////////////////////////
 // Helper to output a table that looks like Table 1 in 7.2.2.1:
-static void format(ostream &stream)
+static void format(ostream& stream)
 {
-	stream << "Using " << nstrings << " strings with " << nunique << " characters and " << nstring_chars << " total characters." << endl;
+	stream << "Using " << nsequences << " sequences with " << nunique_items << " unique strings and " << nsequence_items << " total strings." << endl;
 	stream << "Gives " << ncells << " cells." << endl;
 
 
-	int nsep = (nunique + 1) * 5 + 8;
+	int nsep = (nunique_items + 1) * 5 + 8;
 	char* separator = new char[nsep + 2];
 	memset(separator, '_', nsep);
 	separator[nsep] = '\n';
@@ -317,40 +314,40 @@ static void format(ostream &stream)
 	stream << separator;
 
 	stream << setw(8) << "i";
-	for (int n = 0; n <= nunique; n++)
+	for (int n = 0; n <= nunique_items; n++)
 		stream << setw(5) << headers[n].i;
 	stream << endl << setw(8) << "NAME";
-	for (int n = 0; n <= nunique; n++)
-		stream << setw(5) << headers[n].name;
+	for (int n = 0; n <= nunique_items; n++)
+		stream << setw(5) << headers[n].pName;
 	stream << endl << setw(8) << "LLINK";
-	for (int n = 0; n <= nunique; n++)
+	for (int n = 0; n <= nunique_items; n++)
 		stream << setw(5) << headers[n].llink;
 	stream << endl << setw(8) << "RLINK";
-	for (int n = 0; n <= nunique; n++)
+	for (int n = 0; n <= nunique_items; n++)
 		stream << setw(5) << headers[n].rlink;
 
 	stream << endl;
 	stream << separator;
 
 	stream << setw(8) << "x";
-	for (int n = 0; n <= nunique; n++)
+	for (int n = 0; n <= nunique_items; n++)
 		stream << setw(5) << cells[n].x;
 	stream << endl << setw(8) << "LEN";
-	for (int n = 0; n <= nunique; n++)
+	for (int n = 0; n <= nunique_items; n++)
 		stream << setw(5) << cells[n].len;
 	stream << endl << setw(8) << "ULINK";
-	for (int n = 0; n <= nunique; n++)
+	for (int n = 0; n <= nunique_items; n++)
 		stream << setw(5) << cells[n].ulink;
 	stream << endl << setw(8) << "DLINK";
-	for (int n = 0; n <= nunique; n++)
+	for (int n = 0; n <= nunique_items; n++)
 		stream << setw(5) << cells[n].dlink;
 
 	stream << endl;
 	stream << separator;
 
-	for (int line_start = 2 * (nunique + 1); line_start < ncells; line_start += nunique + 1)
+	for (int line_start = 2 * (nunique_items + 1); line_start < ncells; line_start += nunique_items + 1)
 	{
-		int line_cell_count = min(nunique + 1, ncells - line_start);
+		int line_cell_count = min(nunique_items + 1, ncells - line_start);
 
 		stream << setw(8) << "x";
 		for (int n = 0; n < line_cell_count; n++)
@@ -410,7 +407,7 @@ enum AlgXStates
 //
 // Main function: print the exact cover of a null-terminated array of string.
 //
-bool exact_cover(const char* pstrings[])
+bool exact_cover_strings(const vector< vector<const char*> >& sequences)
 {
 	assert(_CrtCheckMemory());
 	AlgXStates state = ax_Initialize;
@@ -418,17 +415,16 @@ bool exact_cover(const char* pstrings[])
 	bool rval = false;
 
 	start_time = std::chrono::high_resolution_clock::now();
-	get_counts(pstrings);
-	init_cells(pstrings);
+	get_counts(sequences);
+	init_cells(sequences);
 	setup_complete = std::chrono::high_resolution_clock::now();
 
 	//print();		// If you want to see Table 1.
 
 	int i, p, l;
 
-	// This stores the index of our choice at each level. We need no more than
-	// the number of unique characters.
-	int *x = new int[nunique];
+	// This stores the index of our choice at each level.
+	int* x = new int[nunique_items];
 
 	for (;;)
 	{
@@ -533,8 +529,8 @@ bool exact_cover(const char* pstrings[])
 					int q = c;
 					do
 					{
-						cout << headers[cells[q].top].name << " ";
-						
+						cout << headers[cells[q].top].pName << " ";
+
 						q++;
 						if (cells[q].top <= 0)
 						{
@@ -557,51 +553,30 @@ bool exact_cover(const char* pstrings[])
 		}
 	}
 }
-///////////////////////////////////////////////////////////////////////////////
-// Unit test for cover/uncover.
-bool test_cover_uncover(const char* pstrings[])
+
+
+
+bool exact_cover_strings(const char* pstrings[])
 {
-	get_counts(pstrings);
-	init_cells(pstrings);
+	bool rval;
+	assert(_CrtCheckMemory());
 
-	ostringstream  before, after;
-	format(before);
-
-	bool pass = true;
-	for (int i = 1; i <= nunique; i++)
 	{
-		cover(i);
-		uncover(i);
-		format(after);
-		if (!print_diff(before.str(), after.str()))
-		{
-			if (pass == true)
-			{
-				pass = false;
-				cout << before.str();
-			}
-			cout << after.str();
-		}
+		ConvertedCharProblem converted(pstrings);
+		rval = exact_cover_strings(converted.stringPointers);
 	}
-	return pass;
+
+	assert(_CrtCheckMemory());
+
+	return rval;
 }
 
-void unit_test()
-{
-	const char* strings[] =
-	{
-		"ce",
-		"adg",
-		"bcf",
-		"adf",
-		"bg",
-		"deg",
-		nullptr
-	};
-	test_cover_uncover(strings);
-}
+///////////////////////////////////////////////////////////////////////////////
+const char* small_char_problems[];
+const char* large_char_problem[];
+const char* vary_large_char_problem[];
 
-void small_problems()
+void x_small_problems()
 {
 
 	bool b;
@@ -609,28 +584,42 @@ void small_problems()
 	const char** pstrings = small_char_problems;
 	while (*pstrings)
 	{
-		b = exact_cover(pstrings);
+		b = exact_cover_strings(pstrings);
 		assert(b);
 		while (*(pstrings++));
 	}
-	cout << b << endl;
-
 }
-
-void large_problem()
+///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+void x_large_problem()
 {
+	ConvertedCharProblem converted(large_char_problem);
 
-	auto start = std::chrono::high_resolution_clock::now();
+	bool b = exact_cover_strings(converted.stringPointers);
 
-	bool b = exact_cover(large_char_problem);
-
-	auto finish = std::chrono::high_resolution_clock::now();
 	assert(b);
-
 
 	auto setup_dt = std::chrono::duration_cast<std::chrono::microseconds>(setup_complete - start_time);
 	auto run_dt = std::chrono::duration_cast<std::chrono::microseconds>(run_complete - setup_complete);
 
-	cout << "Large problem solution took: " << setup_dt.count() << " microseconds for setup and " <<
+	cout << "Large problem with strings solution took: " << setup_dt.count() << " microseconds for setup and " <<
 		run_dt.count() << " microseconds to run.\n";
 }
+///////////////////////////////////////////////////////////////////////////////
+void x_very_large_problem()
+{
+	StringArrayConverter converted(vary_large_char_problem);
+
+	bool b = exact_cover_strings(converted.stringPointers);
+
+	cout << "Result: " << b << endl;
+
+	auto setup_dt = std::chrono::duration_cast<std::chrono::microseconds>(setup_complete - start_time);
+	auto run_dt = std::chrono::duration_cast<std::chrono::microseconds>(run_complete - setup_complete);
+
+	cout << "Very large problem with strings solution took: " << setup_dt.count() << " microseconds for setup and " <<
+		run_dt.count() << " microseconds to run.\n";
+}
+
+
+
