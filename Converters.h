@@ -1,4 +1,9 @@
+//
+// Some helper functions and classes to convert character sequences to string
+// sequences.
+
 #pragma once
+
 
 #include <string>
 #include <iostream>

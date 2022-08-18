@@ -35,5 +35,8 @@
     <ClInclude Include="Converters.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="ProblemGenerator.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

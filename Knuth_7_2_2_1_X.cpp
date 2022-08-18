@@ -1,5 +1,3 @@
-// Knuth_7_2_2_1_X.cpp : This file contains the 'main' function. Program execution begins and ends there.
-//
 #include <algorithm>
 #include <iostream>
 #include <iomanip>

@@ -1,5 +1,6 @@
 
 #include <iostream>
+#include "ProblemGenerator.h"
 using namespace std;
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -15,6 +16,7 @@ void large_problem();
 void x_small_problems();
 void x_large_problem();
 void x_very_large_problem();
+bool exact_cover_strings(const vector< vector<const char*> >& sequences);
 
 void ptr_small_problems();
 void ptr_large_problem();
@@ -56,21 +58,31 @@ const char* vary_large_char_problem[] = {
 	nullptr,	// Terminator
 };
 ///////////////////////////////////////////////////////////////////////////////
-
 int main()
 {
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF | _CRTDBG_CHECK_ALWAYS_DF);
 
-	//x_small_problems();
-	//x_large_problem();
-	x_very_large_problem();
+	// Various combinations of problems you can run by uncommenting.
+
+	// These run the original algorithm, which uses characters as items, and so
+	// is limited in how many items you can have:
 	//unit_test();
 	//small_problems();
-	//large_problem();
+	large_problem();
 
+
+	// Routines with an x_ prefix run the original algorithm modified to use character
+	// strings as items. The number of items can be unbounded.
+	//x_small_problems();
+	x_large_problem();
+	//x_very_large_problem();
+
+	// Routines with the a ptr_ prefix run an algorithm implemented with pointers, instead
+	// of indices. This is closer to what a moder C++ programm might write, allthough
+	// it turns out to be slower.
 	//ptr_small_problems();
-	//ptr_large_problem();
-	ptr_very_large_problem();
+	ptr_large_problem();
+	//ptr_very_large_problem();
 
 	assert(_CrtCheckMemory());
 	cout << "Done!\n";
