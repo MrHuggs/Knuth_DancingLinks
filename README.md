@@ -16,7 +16,7 @@ There are several implementations which are slightly different:
 ## Large Problem
 
 Running all three versions agains the "large" problem (166 strings, all 26 characters, 769 total characters) gives:
-'''
+```
 Knuth_7_2_2_1_X.exe
         a f p l o
         b w i z
@@ -42,7 +42,7 @@ Cover found:
         m j u v
 Large problem with pointers solution took: 139 microseconds for setup and 350 microseconds to run and 3045 iterations.
 Done!
-'''
+```
 Notice:
 
 * The string and character versions are very close and have the same number of state changes.
