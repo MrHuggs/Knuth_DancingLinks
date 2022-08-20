@@ -146,7 +146,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AlgXPointer.h" />
-    <ClInclude Include="Converters.h" />
+    <ClInclude Include="Common.h" />
     <ClInclude Include="ProblemGenerator.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

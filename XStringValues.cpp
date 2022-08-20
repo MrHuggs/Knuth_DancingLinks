@@ -11,7 +11,7 @@
 #include <map>
 #include <chrono>
 
-#include "Converters.h"
+#include "Common.h"
 using namespace std;
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -70,6 +70,7 @@ static Cell* cells;
 static chrono::steady_clock::time_point start_time;
 static chrono::steady_clock::time_point setup_complete;
 static chrono::steady_clock::time_point run_complete;
+static long long loop_count;
 ///////////////////////////////////////////////////////////////////////////////
 // First step of analysis: Find out how many strings & unique characters there are:
 
@@ -83,6 +84,10 @@ static void get_counts(const vector< vector<const char *> > &sequences)
 
 	nunique_items = 0;
 
+	// We will record the item names, sort them, and then assign id's in sort order.
+	// This is not really needed, but matches what Knuth_7_2_2_1_X does.
+	vector<const char*> item_names;
+
 	for (int i= 0; i < nsequences; i++)
 	{
 		const vector<const char*>& seq = sequences[i];
@@ -92,11 +97,20 @@ static void get_counts(const vector< vector<const char *> > &sequences)
 		{
 			if (pitem_indices->find(pc) == pitem_indices->end())
 			{
-				int id = nunique_items++ + 1;
-				(*pitem_indices)[pc] = id;
-				(*pindex_items)[id] = pc;
+				nunique_items++;
+				item_names.push_back(pc);
+				(*pitem_indices)[pc] = 0;	// We'll figure out id's later
 			}
 		}
+	}
+
+	sort(item_names.begin(), item_names.end(), [](const char* pa, const char* pb) { return strcmp(pa, pb) < 0; });
+
+	for (int i = 0; i <item_names.size(); i++)
+	{
+		int id = i + 1;	// Id's in Knuth's scheme start at 1.
+		(*pitem_indices)[item_names[i]] = id;
+		(*pindex_items)[id] = item_names[i];
 	}
 
 	// Calculate the total number of cells needed.
@@ -389,20 +403,43 @@ static void print()
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// States of the algorithm. Corresponds to X1-X8.
-// Note that some of these could be combined.
-enum AlgXStates
+///////////////////////////////////////////////////////////////////////////////
+// Given the id of a cell in a sequence, output the whole sequence.
+static const char *format_sequence(int q)
 {
-	ax_Initialize,
-	ax_EnterLevel,
-	ax_Choose,
-	ax_Cover,
-	ax_TryX,
-	ax_TryAgain,
-	ax_Backtrack,
-	ax_LeaveLevel,
-	ax_Cleanup,
-};
+	// Fast forward to the separator:
+	do
+	{
+		q++;
+	} while (cells[q].top > 0);
+
+	// Start of the sequence is the separator's ulink:
+	q = cells[q].ulink;
+
+	const int bufsize = 256;
+	static char buf[bufsize];
+
+	buf[0] = 0;
+	size_t curlen = 0;
+
+	do
+	{
+		auto n = strlen(headers[cells[q].top].pName);
+
+		if (curlen + n + 1 > bufsize)
+		{
+			assert(false);
+			return "Error: out of buffer space! ";
+		}
+
+		memcpy(buf + curlen, headers[cells[q].top].pName, n + 1);
+		curlen += n;
+
+		q++;
+
+	} while (cells[q].top > 0);
+	return buf;
+}
 ///////////////////////////////////////////////////////////////////////////////
 //
 // Main function: print the exact cover of a null-terminated array of string.
@@ -418,16 +455,20 @@ bool exact_cover_strings(const vector< vector<const char*> >& sequences)
 	get_counts(sequences);
 	init_cells(sequences);
 	setup_complete = std::chrono::high_resolution_clock::now();
+	loop_count = 0;
 
 	//print();		// If you want to see Table 1.
 
-	int i, p, l;
+	int i, p, l = -1;
 
 	// This stores the index of our choice at each level.
 	int* x = new int[nunique_items];
 
 	for (;;)
 	{
+		loop_count++;
+		TRACE("%lli:%i - %s\n", loop_count, l, StateName(state));
+
 		switch (state)
 		{
 		case ax_Initialize:
@@ -454,6 +495,8 @@ bool exact_cover_strings(const vector< vector<const char*> >& sequences)
 			cover(i);
 			x[l] = cells[i].dlink;
 			state = ax_TryX;
+
+			TRACE("\t\t%i - covering: %s\n", l, headers[i].pName);
 			break;
 
 		case ax_TryX:
@@ -475,6 +518,9 @@ bool exact_cover_strings(const vector< vector<const char*> >& sequences)
 					p++;
 				}
 			}
+
+			TRACE("\t\t%i - trying: %s\n", l, format_sequence(p));
+
 			l++;
 			state = ax_EnterLevel;
 			break;
@@ -520,25 +566,13 @@ bool exact_cover_strings(const vector< vector<const char*> >& sequences)
 
 			if (rval == true)
 			{
+				cout << "Cover found:" << endl;
 				// To output the actual strings:
 				for (int lout = 0; lout < l; lout++)
 				{
 					// c will be the cell index of a character in the string we chose.
-					// Loop through the characters in the string as we do in hide.
 					int c = x[lout];
-					int q = c;
-					do
-					{
-						cout << headers[cells[q].top].pName << " ";
-
-						q++;
-						if (cells[q].top <= 0)
-						{
-							q = cells[q].ulink;		// We hit the spacer. ulink is start of the string.
-						}
-
-					} while (q != c);
-					cout << endl;
+					cout << "\t" << format_sequence(c) << endl;
 				}
 			}
 			else
@@ -594,6 +628,7 @@ void x_small_problems()
 void x_large_problem()
 {
 	ConvertedCharProblem converted(large_char_problem);
+	//converted.Print();
 
 	bool b = exact_cover_strings(converted.stringPointers);
 
@@ -603,7 +638,7 @@ void x_large_problem()
 	auto run_dt = std::chrono::duration_cast<std::chrono::microseconds>(run_complete - setup_complete);
 
 	cout << "Large problem with strings solution took: " << setup_dt.count() << " microseconds for setup and " <<
-		run_dt.count() << " microseconds to run.\n";
+		run_dt.count() << " microseconds to run and " << loop_count << " iterations.\n";
 }
 ///////////////////////////////////////////////////////////////////////////////
 void x_very_large_problem()

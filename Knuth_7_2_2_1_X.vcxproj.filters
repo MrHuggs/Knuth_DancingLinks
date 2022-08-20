@@ -32,7 +32,7 @@
     <ClInclude Include="AlgXPointer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Converters.h">
+    <ClInclude Include="Common.h">
       <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="ProblemGenerator.h">

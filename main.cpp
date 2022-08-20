@@ -36,6 +36,8 @@ const char* small_char_problems[] =
 };
 
 const char* large_char_problem[] = {
+	//"ce", "adg", "bcf",	"adf", "bg", "deg", nullptr,
+
 	"svoxm", "shown", "ogipc", "hxmtq", "djxtf", "elroa", "hzytp", "gtnc", "zgwfc", "dvzwf", "oayuc", "rzgyt",
 	"bgxtq", "jlxan", "oaqic", "jzxoq", "sdogw", "loafp", "dhlfc", "sdbkw", "drknu", "jogwt", "zvpe", "ehxgp",
 	"sdev", "koznf", "dkvap", "jtqfp", "hjryu", "dejot", "sojf", "sekgw", "twrn", "ejvyt", "hjbpc", "lynqc",
@@ -52,6 +54,7 @@ const char* large_char_problem[] = {
 	"hiej", "mjuv",
 	nullptr
 };
+
 ///////////////////////////////////////////////////////////////////////////////
 const char* vary_large_char_problem[] = {
 #include "sequence.txt"
@@ -68,7 +71,7 @@ int main()
 	// is limited in how many items you can have:
 	//unit_test();
 	//small_problems();
-	large_problem();
+	//large_problem();
 
 
 	// Routines with an x_ prefix run the original algorithm modified to use character

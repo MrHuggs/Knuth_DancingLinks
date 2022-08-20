@@ -1,12 +1,13 @@
 
 #include <iostream>
+#include <algorithm>
 #include <iomanip>
 #include <cassert>
 #include <sstream>
 #include <unordered_set>
 #include <chrono>
 
-#include "Converters.h"
+#include "Common.h"
 #include "AlgXPointer.h"
 
 using namespace std;
@@ -45,19 +46,36 @@ ItemHeader* AlgXPointer::getItem(const char* pc)
 	pitem->pName = pc;
 
 	itemHeaders[pc] = pitem;
-
-	pitem->pNextActive = pFirstActiveItem;
-
-	if (pFirstActiveItem)
-	{
-		pFirstActiveItem->pPrevActive = pitem;
-	}
-
-	pFirstActiveItem = pitem;
-
+	
 	return pitem;
 }
+///////////////////////////////////////////////////////////////////////////////
+void AlgXPointer::sortItems()
+{
+	// Sort the items to match the order in the original AlgorithmX. In general,
+	// this should not make any difference, but is useful for comparing
+	// performance.
 
+	vector<ItemHeader*> headers;
+	for (auto iter = itemHeaders.begin(); iter != itemHeaders.end(); iter++)
+	{
+		ItemHeader* pitem = iter->second;
+		headers.push_back(pitem);
+	}
+
+	sort(headers.begin(), headers.end(), [](const ItemHeader* pa, const ItemHeader* pb) 
+		{ return strcmp(pa->pName, pb->pName) < 0; });
+
+
+	pFirstActiveItem = headers[0];
+
+	for (int i = 0; i < headers.size() - 1; i++)
+	{
+		headers[i]->pNextActive = headers[i + 1];
+		headers[i + 1]->pPrevActive = headers[i];
+	}
+
+}
 ///////////////////////////////////////////////////////////////////////////////
 AlgXPointer::AlgXPointer(const std::vector< std::vector<const char*> >& sequences)
 {
@@ -71,12 +89,18 @@ AlgXPointer::AlgXPointer(const std::vector< std::vector<const char*> >& sequence
 
 		XCell* pprev = nullptr;
 
+		vector<XCell*> cells;
+
 		for (const char* pc : seq)
 		{
 			ItemHeader* pitem = getItem(pc);
 
 			XCell* pcell = new XCell;
-
+			
+#if LINK_TOP
+			// It would be easiest to just link the new cell at the top of the list.
+			// However, to match AlgorithmX more closely, we should link at the bottom. This
+			// will produce the same sequence of choices.
 			pcell->pDown = pitem->pTopCell;
 
 			if (pitem->pTopCell)
@@ -84,24 +108,38 @@ AlgXPointer::AlgXPointer(const std::vector< std::vector<const char*> >& sequence
 				pitem->pTopCell->pUp = pcell;
 			}
 			pitem->pTopCell = pcell;
-
-			pcell->pLeft = pprev;
-
-			if (pprev)
+#else
+			if (pitem->pTopCell)
 			{
-				pprev->pRight = pcell;
+				XCell* pexisting = pitem->pTopCell;
+				while (pexisting->pDown)
+				{
+					pexisting = pexisting->pDown;
+				}
+				pexisting->pDown = pcell;
+				pcell->pUp = pexisting;
 			}
-			pprev = pcell;
+			else 
+				pitem->pTopCell = pcell;
+#endif
+
+			cells.push_back(pcell);
 
 			pcell->pTop = pitem;
 		}
+
+		for (int j = 0; j < cells.size() - 1; j++)
+		{
+			cells[j]->pRight = cells[j + 1];
+			cells[j + 1]->pLeft = cells[j];
+		}
 	}
+
+	sortItems();
 
 	auto end_time = std::chrono::high_resolution_clock::now();
 	setupTime =  (long) std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count();
-
 }
-
 ///////////////////////////////////////////////////////////////////////////////
 void AlgXPointer::unlinkCellVertically(XCell* pcell)
 {
@@ -264,7 +302,6 @@ void AlgXPointer::format(ostream& stream)
 	{
 		item_indexes[pitem] = idx++;
 	}
-	//assert(idx == nunique_items);
 
 	stream << separator;
 
@@ -342,16 +379,21 @@ bool AlgXPointer::exactCover()
 
 	auto start_time = std::chrono::high_resolution_clock::now();
 
-	//print();		// If you want to see Table 1.
+	//print();
 
-	int l;
+	int l = -1;
 
 	// This stores the index of our choice at each level.
 	size_t nunique_items = itemHeaders.size();
 	XCell** px = (XCell**) alloca(nunique_items * sizeof(XCell*));
 
+	loopCount = 0;
+
 	for (;;)
 	{
+		loopCount++;
+		TRACE("%lli:%i - %s\n", loopCount, l, StateName(state));
+
 		switch (state)
 		{
 		case ax_Initialize:
@@ -366,10 +408,10 @@ bool AlgXPointer::exactCover()
 				state = ax_Cleanup;
 			}
 			else
-				state = ax_ChooseAndCover;
+				state = ax_Choose;
 			break;
 
-		case ax_ChooseAndCover:
+		case ax_Choose:	// Choose and cover are combined for this version.
 		{
 			auto pcur_item = pFirstActiveItem;
 
@@ -384,9 +426,7 @@ bool AlgXPointer::exactCover()
 
 			state = ax_TryX;
 
-#ifdef TRACE_PICKS
-			cout << l << " - " << pcur_item->pName << endl;
-#endif
+			TRACE("\t\t%i - covering: %s\n", l, pcur_item->pName);
 
 			break;
 		}
@@ -396,12 +436,8 @@ bool AlgXPointer::exactCover()
 
 			coverSeqItems(px[l]);
 
-#ifdef TRACE_PICKS
-			cout << l << " try ";
-			px[l]->format(cout);
-			cout << endl;
-			print();
-#endif
+			TRACE("\t\t%i - trying: %s\n", l, px[l]->format());
+
 			l++;
 			state = ax_EnterLevel;
 			break;
@@ -421,9 +457,6 @@ bool AlgXPointer::exactCover()
 			}
 			break;
 		case ax_Backtrack:
-#ifdef TRACE_PICKS
-			cout << "Backtrack" << endl;
-#endif
 			uncover(px[l]->pTop);
 			state = ax_LeaveLevel;
 			break;
@@ -447,20 +480,13 @@ bool AlgXPointer::exactCover()
 			if (rval == true)
 			{
 				// To output the actual strings:
-			
+
+				cout << "Cover found:" << endl;
 				for (int lout = 0; lout < l; lout++)
 				{
 					XCell* pcell = px[lout];
 
-					while (pcell->pLeft)
-						pcell = pcell->pLeft;
-
-					do
-					{
-						cout << pcell->pTop->pName << " ";
-						pcell = pcell->pRight;
-					} while (pcell);
-					cout << endl;
+					cout << "\t" << pcell->format() << endl;
 				}
 
 				// Relink all the covered/hidden items. At the very least, need this
@@ -556,7 +582,7 @@ void ptr_large_problem()
 
 
 	cout << "Large problem with pointers solution took: " << alg.setupTime << " microseconds for setup and " <<
-		alg.runTime << " microseconds to run.\n";
+		alg.runTime << " microseconds to run and " << alg.loopCount	<< " iterations.\n";
 }
 ///////////////////////////////////////////////////////////////////////////////
 

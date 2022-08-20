@@ -5,6 +5,7 @@
 #include <random>
 #include <cassert>
 #include <unordered_set>
+#include "Common.h"
 ///////////////////////////////////////////////////////////////////////////////
 class RandRange
 {
@@ -146,18 +147,6 @@ public:
 			Sequences.emplace_back(ptr_vec);
 		}
 		
-	}
-
-	static void print_sequences(const std::vector< std::vector<const char*> > & sequences)
-	{
-		for (auto ptr_vec : sequences)
-		{
-			for (auto pc : ptr_vec)
-			{
-				std::cout << pc << ", ";
-			}
-			std::cout << std::endl;
-		}
 	}
 
 	void Print() const

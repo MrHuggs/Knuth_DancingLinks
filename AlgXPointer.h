@@ -11,6 +11,7 @@ class XCell;
 
 
 class XCell;
+enum AlgXStates;
 
 class ItemHeader
 {
@@ -47,17 +48,34 @@ public:
 	XCell* pUp;		
 	XCell* pDown;
 
-	void format(std::ostream& stream)
+	const char *format()
 	{
 		XCell* pcell = this;
 		while (pcell->pLeft)
 			pcell = pcell->pLeft;
 
+		const int bufsize = 256;
+		static char buf[bufsize];	// Yes, this is not thread safe.
+
+		buf[0] = 0;
+		size_t curlen = 0;
+
 		while (pcell)
 		{
-			stream << pcell->pTop->pName;
+			auto n = strlen(pcell->pTop->pName);
+
+			if (curlen + n + 1 > bufsize)
+			{
+				assert(false);
+				return "Error: out of buffer space! ";
+			}
+
+			memcpy(buf + curlen, pcell->pTop->pName, n + 1);
+			curlen += n;
+
 			pcell = pcell->pRight;
 		}
+		return buf;
 	}
 };
 
@@ -65,7 +83,6 @@ public:
 class AlgXPointer
 {
 	ItemHeader* pFirstActiveItem;
-
 
 	struct CmpSame
 	{
@@ -77,6 +94,7 @@ class AlgXPointer
 	std::map<const char*, ItemHeader*, CmpSame> itemHeaders;
 
 	ItemHeader* getItem(const char* pc);
+	void sortItems();
 
 	void unlinkCellVertically(XCell* pcell);
 	void relinkCellVertically(XCell* pcell);
@@ -89,18 +107,6 @@ class AlgXPointer
 	void unhide(XCell* pcell);
 	void uncover(ItemHeader* pitem);
 	void uncoverSeqItems(XCell* pcell);
-
-	enum AlgXStates
-	{
-		ax_Initialize,
-		ax_EnterLevel,
-		ax_ChooseAndCover,
-		ax_TryX,
-		ax_TryAgain,
-		ax_Backtrack,
-		ax_LeaveLevel,
-		ax_Cleanup,
-	};
 
 public:
 	AlgXPointer(const std::vector< std::vector<const char*> >& sequences);
@@ -116,5 +122,6 @@ public:
 
 	long setupTime;
 	long runTime;
+	long long loopCount;
 };
 

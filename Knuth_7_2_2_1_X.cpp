@@ -11,7 +11,7 @@ using namespace std;
 const char* small_char_problems[];
 const char* large_char_problem[];
 
-#include "Converters.h"
+#include "Common.h"
 ///////////////////////////////////////////////////////////////////////////////
 // Cell structure to match 7.2.2.1 Table 1:
 struct Cell
@@ -59,6 +59,7 @@ static Cell* cells;
 static chrono::steady_clock::time_point start_time;
 static chrono::steady_clock::time_point setup_complete;
 static chrono::steady_clock::time_point run_complete;
+static long long loop_count;
 ///////////////////////////////////////////////////////////////////////////////
 // First step of analysis: Find out how many strings & unique characters there are:
 static void get_counts(const char *pstrings[])
@@ -84,8 +85,8 @@ static void get_counts(const char *pstrings[])
 		}
 	}
 
-	// Populate the reverse looking table:
-	// Indices should be assigned in sort order:
+	// Populate the reverse lookup table:
+	// Indices will be assigned in sort order:
 	int char_idx = 1;
 	int* indices = char_indices;
 	while (char_idx <= nunique)
@@ -388,22 +389,6 @@ static void print()
 		puts(pc);
 	}
 }
-
-///////////////////////////////////////////////////////////////////////////////
-// States of the algorithm. Corresponds to X1-X8.
-// Note that some of these could be combined.
-enum AlgXStates
-{
-	ax_Initialize,
-	ax_EnterLevel,
-	ax_Choose,
-	ax_Cover,
-	ax_TryX,
-	ax_TryAgain,
-	ax_Backtrack,
-	ax_LeaveLevel,
-	ax_Cleanup,
-};
 ///////////////////////////////////////////////////////////////////////////////
 //
 // Main function: print the exact cover of a null-terminated array of string.
@@ -419,8 +404,11 @@ bool exact_cover(const char* pstrings[])
 	get_counts(pstrings);
 	init_cells(pstrings);
 	setup_complete = std::chrono::high_resolution_clock::now();
+	loop_count = 0;
 
-	//print();		// If you want to see Table 1.
+#ifdef TRACE_PICKS
+	print();		// If you want to see Table 1.
+#endif
 
 	int i, p, l;
 
@@ -430,6 +418,7 @@ bool exact_cover(const char* pstrings[])
 
 	for (;;)
 	{
+		loop_count++;
 		switch (state)
 		{
 		case ax_Initialize:
@@ -630,5 +619,5 @@ void large_problem()
 	auto run_dt = std::chrono::duration_cast<std::chrono::microseconds>(run_complete - setup_complete);
 
 	cout << "Large problem solution took: " << setup_dt.count() << " microseconds for setup and " <<
-		run_dt.count() << " microseconds to run.\n";
+		run_dt.count() << " microseconds to run and " << loop_count << " iterations.\n";
 }

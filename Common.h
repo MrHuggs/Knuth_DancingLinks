@@ -8,6 +8,62 @@
 #include <string>
 #include <iostream>
 #include <vector>
+
+
+// Want conditional output that completely compiles away when not needed.
+#ifdef ENABLE_TRACE
+#include <stdio.h>
+#define TRACE printf
+
+#else
+
+#define TRACE(...) ((void) 0)
+
+#endif
+
+///////////////////////////////////////////////////////////////////////////////
+// States of the algorithm. Corresponds to X1-X8.
+// Note that some of these could be combined.
+enum AlgXStates
+{
+	ax_Initialize,
+	ax_EnterLevel,
+	ax_Choose,
+	ax_Cover,
+	ax_TryX,
+	ax_TryAgain,
+	ax_Backtrack,
+	ax_LeaveLevel,
+	ax_Cleanup,
+};
+inline const char* StateName(AlgXStates state)
+{
+	switch (state)
+	{
+		case ax_Initialize: return "Initialize";
+		case ax_EnterLevel: return "EnterLevel";
+		case ax_Choose:		return "Choose";
+		case ax_Cover:		return "Cover";
+		case ax_TryX:		return "TryX";
+		case ax_TryAgain:	return "TryAgain";
+		case ax_Backtrack:	return "Backtrack";
+		case ax_LeaveLevel:	return "LeaveLevel";
+		case ax_Cleanup:	return "Cleanup";
+		default:			assert(0); return "Error";
+	}
+}
+///////////////////////////////////////////////////////////////////////////////
+inline void print_sequences(const std::vector< std::vector<const char*> >& sequences)
+{
+	for (auto ptr_vec : sequences)
+	{
+		for (auto pc : ptr_vec)
+		{
+			std::cout << pc << ", ";
+		}
+		std::cout << std::endl;
+	}
+}
 ///////////////////////////////////////////////////////////////////////////////
 // Helper to diff to strings. Useful for the comparing the output of format
 // above.
@@ -91,6 +147,11 @@ public:
 			}
 		}
 	}
+
+	void Print() const
+	{
+		print_sequences(stringPointers);
+	}
 };
 //////////////////////////////////////////////////////////////////////////////////
 class StringArrayConverter
@@ -120,4 +181,8 @@ public:
 		}
 	}
 
+	void Print() const
+	{
+		print_sequences(stringPointers);
+	}
 };
