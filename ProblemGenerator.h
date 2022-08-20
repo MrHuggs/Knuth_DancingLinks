@@ -29,12 +29,13 @@ class RandRange
 	int Range;
 	unsigned long long Upper;
 public:
+	// Generated numbers in a range, which is inclusive of the end points.
 	RandRange(int min, int max, unsigned int seed)
 	{
 		applySeed(seed);
 
 		Min = min;
-		Range = max - min;
+		Range = max - min + 1;
 
 		Upper = (MaxRand / Range) * Range;
 	}
@@ -58,20 +59,20 @@ public:
 		const int range = max - min;
 		RandRange rr(min, max, 24);
 
-		int ntest = range * 1000;
-		int counts[range] = { 0 };
+		int ntest = (range + 1) * 1000;
+		int counts[range + 1] = { 0 };
 
 		for (int i = 0; i < ntest; i++)
 		{
 			int r = rr();
 			assert(r >= min);
-			assert(r < max);
+			assert(r <= max);
 			counts[r - min]++;
 		}
 
-		for (int i = 0; i < range; i++)
+		for (int i = min; i <= max; i++)
 		{
-			std::cout << counts[i] << std::endl;
+			std::cout << i << " - " << counts[i - min] << std::endl;
 		}
 	}
 #endif
@@ -79,17 +80,24 @@ public:
 ///////////////////////////////////////////////////////////////////////////////
 class ProblemGenerator
 {
+	// Class to generate a difficult exact cover problem.
+	// The default values of items/counts/seed produce a problem that takes
+	// about 5 seconds to solve.
+	//
+
 	int Items;
 	int SequencesCount;
-	int SequenceLength;
+	int MinSequenceLength;
+	int MaxSequenceLength;
 
 public:
 
-	ProblemGenerator(int items, int sequence_count, int sequence_length)
+	ProblemGenerator(int items = 60, int sequence_count = 500, int min_sequence_length = 4, int max_sequence_length = 5)
 	{
 		Items = items;
 		SequencesCount = sequence_count;
-		SequenceLength = sequence_length;
+		MinSequenceLength = min_sequence_length;
+		MaxSequenceLength = max_sequence_length;
 	}
 
 	~ProblemGenerator()
@@ -111,36 +119,65 @@ public:
 		}
 	}
 		
-	void Generate(unsigned int seed)
+	void Generate(unsigned int seed = 0xdeadbeef)
 	{
 
 		RandRange rng(0, Items - 1, seed);
-
+		RandRange rng_len(MinSequenceLength, MaxSequenceLength, ~seed);
 
 		Sequences.clear();
 
+		std::vector<int> usage_counts;
+
+		usage_counts.resize(Items);
+		int nused = 0;
+
 		for (int i = 0; i < SequencesCount; i++)
 		{
-			std::vector<const char*> ptr_vec;
 
+			std::vector<const char*> ptr_vec;
 			std::unordered_set<int> seen_sequence;
 
-
-			for (int j = 0; j < SequenceLength; j++)
+			if (i == SequencesCount - 1 && nused < Items)
 			{
-
-				int val = rng();
-
-				if (seen_sequence.find(val) != seen_sequence.end())
+				// If we haven't used all the items at least once, make a sequence
+				// with all the unused items.
+				for (int j = 0; j < Items; j++)
 				{
-					continue;
-				}
-				seen_sequence.insert(val);
+					if (usage_counts[j] == 0)
+					{
+						char buf[32];
+						_itoa_s(j + 1, buf, 32, 10);
 
-				char buf[32];
-				_itoa_s(val, buf, 32, 10);
-						
-				ptr_vec.emplace_back(_strdup(buf));
+						ptr_vec.emplace_back(_strdup(buf));
+					}
+				}
+			}
+			else
+			{
+				int len = rng_len();
+
+				for (int j = 0; j < len; j++)
+				{
+
+					int val = rng();
+
+					if (seen_sequence.find(val) != seen_sequence.end())
+					{
+						continue;
+					}
+					seen_sequence.insert(val);
+					if (usage_counts[val]++ == 0)
+					{
+						nused++;
+					}
+
+
+					char buf[32];
+					_itoa_s(val + 1, buf, 32, 10);
+
+					ptr_vec.emplace_back(_strdup(buf));
+				}
 			}
 
 

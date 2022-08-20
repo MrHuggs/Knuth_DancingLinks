@@ -7,11 +7,11 @@
 #include <iomanip>
 #include <cassert>
 #include <sstream>
-
 #include <map>
 #include <chrono>
 
 #include "Common.h"
+#include "ProblemGenerator.h"
 using namespace std;
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -426,18 +426,23 @@ static const char *format_sequence(int q)
 	{
 		auto n = strlen(headers[cells[q].top].pName);
 
-		if (curlen + n + 1 > bufsize)
+		if (curlen + n + 2 > bufsize)
 		{
 			assert(false);
 			return "Error: out of buffer space! ";
 		}
 
-		memcpy(buf + curlen, headers[cells[q].top].pName, n + 1);
+		memcpy(buf + curlen, headers[cells[q].top].pName, n);
 		curlen += n;
+
+		buf[curlen] = ' ';
+		curlen++;
 
 		q++;
 
 	} while (cells[q].top > 0);
+
+	buf[curlen] = 0;
 	return buf;
 }
 ///////////////////////////////////////////////////////////////////////////////
@@ -643,9 +648,10 @@ void x_large_problem()
 ///////////////////////////////////////////////////////////////////////////////
 void x_very_large_problem()
 {
-	StringArrayConverter converted(vary_large_char_problem);
+	ProblemGenerator generator;
+	generator.Generate();
 
-	bool b = exact_cover_strings(converted.stringPointers);
+	bool b = exact_cover_strings(generator.Sequences);
 
 	cout << "Result: " << b << endl;
 

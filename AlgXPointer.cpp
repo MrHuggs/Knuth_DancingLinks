@@ -8,6 +8,7 @@
 #include <chrono>
 
 #include "Common.h"
+#include "ProblemGenerator.h"
 #include "AlgXPointer.h"
 
 using namespace std;
@@ -588,14 +589,14 @@ void ptr_large_problem()
 
 void ptr_very_large_problem()
 {
-	StringArrayConverter converted(vary_large_char_problem);
+	ProblemGenerator generator;
+	generator.Generate();
 
-	AlgXPointer alg(converted.stringPointers);
+	AlgXPointer alg(generator.Sequences);
 
 	bool b = alg.exactCover();
 
 	assert(b);
-
 
 	cout << "Very large problem with pointers solution took: " << alg.setupTime << " microseconds for setup and " <<
 		alg.runTime << " microseconds to run.\n";

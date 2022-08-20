@@ -1,6 +1,8 @@
 #pragma once
 
-// Pointer based versin of Knuth's Algorithm X.
+// Pointer based version of Knuth's Algorithm X.
+// Some care is taken to make the same choices Knuth would make so
+// performance can be compared.
 
 #include <vector>
 #include <map>
@@ -64,17 +66,22 @@ public:
 		{
 			auto n = strlen(pcell->pTop->pName);
 
-			if (curlen + n + 1 > bufsize)
+			if (curlen + n + 2 > bufsize)
 			{
 				assert(false);
 				return "Error: out of buffer space! ";
 			}
 
-			memcpy(buf + curlen, pcell->pTop->pName, n + 1);
+			memcpy(buf + curlen, pcell->pTop->pName, n);
 			curlen += n;
+			buf[curlen] = ' ';
+			curlen++;
 
 			pcell = pcell->pRight;
 		}
+		buf[curlen] = 0;
+		assert(curlen < bufsize);
+
 		return buf;
 	}
 };

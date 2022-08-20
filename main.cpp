@@ -36,8 +36,6 @@ const char* small_char_problems[] =
 };
 
 const char* large_char_problem[] = {
-	//"ce", "adg", "bcf",	"adf", "bg", "deg", nullptr,
-
 	"svoxm", "shown", "ogipc", "hxmtq", "djxtf", "elroa", "hzytp", "gtnc", "zgwfc", "dvzwf", "oayuc", "rzgyt",
 	"bgxtq", "jlxan", "oaqic", "jzxoq", "sdogw", "loafp", "dhlfc", "sdbkw", "drknu", "jogwt", "zvpe", "ehxgp",
 	"sdev", "koznf", "dkvap", "jtqfp", "hjryu", "dejot", "sojf", "sekgw", "twrn", "ejvyt", "hjbpc", "lynqc",
@@ -51,19 +49,16 @@ const char* large_char_problem[] = {
 	"jqtn", "oatup", "lvxwy", "oxgk", "minc", "vgin", "bjrnp", "euamf", "owytu", "sbomq", "jgupc", "sqvx", "hanmi",
 	"bjkmc", "sayfc", "sehrg", "bowaq", "sqpx", "atfh", "zsrn", "dbvgm", "hlogt", "djoxg", "vozym", "duvc", "elrka",
 	"dekzn", "rogmq", "ozek", "evznc", "kgwip", "owv", "sjknq", "bwqip", "juie", "dqan", "jqul", "zsfn", "dekou",
-	"hiej", "mjuv",
+	"hiej",
+	"mjuv",	// Not that if you remove this list item, the problem is not solvable.
 	nullptr
 };
 
 ///////////////////////////////////////////////////////////////////////////////
-const char* vary_large_char_problem[] = {
-#include "sequence.txt"
-	nullptr,	// Terminator
-};
-///////////////////////////////////////////////////////////////////////////////
 int main()
 {
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF | _CRTDBG_CHECK_ALWAYS_DF);
+
 
 	// Various combinations of problems you can run by uncommenting.
 
@@ -77,15 +72,15 @@ int main()
 	// Routines with an x_ prefix run the original algorithm modified to use character
 	// strings as items. The number of items can be unbounded.
 	//x_small_problems();
-	x_large_problem();
-	//x_very_large_problem();
+	//x_large_problem();
+	x_very_large_problem();
 
 	// Routines with the a ptr_ prefix run an algorithm implemented with pointers, instead
-	// of indices. This is closer to what a moder C++ programm might write, allthough
+	// of indices. This is closer to what a modern C++ programmer might write, although
 	// it turns out to be slower.
 	//ptr_small_problems();
-	ptr_large_problem();
-	//ptr_very_large_problem();
+	//ptr_large_problem();
+	ptr_very_large_problem();
 
 	assert(_CrtCheckMemory());
 	cout << "Done!\n";

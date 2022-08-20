@@ -518,6 +518,7 @@ bool exact_cover(const char* pstrings[])
 					// Loop through the characters in the string as we do in hide.
 					int c = x[lout];
 					int q = c;
+					cout << "\t";
 					do
 					{
 						cout << headers[cells[q].top].name << " ";
