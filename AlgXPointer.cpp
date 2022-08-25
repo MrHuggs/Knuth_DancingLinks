@@ -204,6 +204,10 @@ void AlgXPointer::cover(ItemHeader* pitem)
 ///////////////////////////////////////////////////////////////////////////////
 void AlgXPointer::coverSeqItems(XCell* pcell)
 {
+	// These routines (coverSeqItems/uncoverSeqItems) don't unlink/relink
+	// in reverse order, which isn't a problem but maybe not quite right.
+
+
 	for (XCell* pleft = pcell->pLeft; pleft; pleft = pleft->pLeft)
 	{
 		cover(pleft->pTop);
