@@ -492,9 +492,31 @@ bool exact_cover_strings(const vector< vector<const char*> >& sequences)
 			break;
 
 		case ax_Choose:
+		{
 			i = headers[0].rlink;
+
+			// A good heuristic for picking the next choice is to pick the item
+			// present in the smallest number of sequences. In a few tests, this
+			// Seems to make a huge difference.
+#define CHOOSE_MIN
+#ifdef CHOOSE_MIN
+			int lbest = cells[i].len;
+			int inext = headers[i].rlink;
+
+			while (inext != 0)
+			{
+				if (cells[inext].len < lbest)
+				{
+					i = inext;
+					lbest = cells[i].len;
+				}
+				inext = headers[inext].rlink;
+			}
+#endif
+
 			state = ax_Cover;
 			break;
+		}
 
 		case ax_Cover:
 			cover(i);
@@ -659,7 +681,7 @@ void x_very_large_problem()
 	auto run_dt = std::chrono::duration_cast<std::chrono::microseconds>(run_complete - setup_complete);
 
 	cout << "Very large problem with strings solution took: " << setup_dt.count() << " microseconds for setup and " <<
-		run_dt.count() << " microseconds to run.\n";
+		run_dt.count() << " microseconds to run and " << loop_count << " iterations.\n";
 }
 
 

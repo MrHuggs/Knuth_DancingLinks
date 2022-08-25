@@ -14,6 +14,18 @@
 using namespace std;
 
 
+int ItemHeader::cellCount() const
+{
+	int count = 0;
+	for (auto pcell = pTopCell; pcell; pcell = pcell->pDown) { count++; }
+
+	if (count != Count)
+	{
+		cout << "Count error for " << pName << endl;
+	}
+	return count;
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 
 AlgXPointer::~AlgXPointer()
@@ -123,16 +135,20 @@ AlgXPointer::AlgXPointer(const std::vector< std::vector<const char*> >& sequence
 			else 
 				pitem->pTopCell = pcell;
 #endif
+			pitem->Count++;
 
 			cells.push_back(pcell);
 
 			pcell->pTop = pitem;
 		}
 
-		for (int j = 0; j < cells.size() - 1; j++)
+		int ncells = (int) cells.size();
+		for (int j = 0; j < ncells; j++)
 		{
-			cells[j]->pRight = cells[j + 1];
-			cells[j + 1]->pLeft = cells[j];
+			int next = (j + 1) % ncells;
+			int prev = (j + ncells - 1) % ncells;
+			cells[j]->pRight = cells[next];
+			cells[j]->pLeft = cells[prev];
 		}
 	}
 
@@ -157,6 +173,8 @@ void AlgXPointer::unlinkCellVertically(XCell* pcell)
 	{
 		pcell->pDown->pUp = pcell->pUp;
 	}
+	pcell->pTop->Count--;
+	assert(pcell->pTop->Count >= 0);
 }
 ///////////////////////////////////////////////////////////////////////////////
 void AlgXPointer::relinkCellVertically(XCell* pcell)
@@ -174,10 +192,14 @@ void AlgXPointer::relinkCellVertically(XCell* pcell)
 	{
 		pcell->pDown->pUp = pcell;
 	}
+
+	pcell->pTop->Count++;
 }
 ///////////////////////////////////////////////////////////////////////////////
 void AlgXPointer::cover(ItemHeader* pitem)
 {
+	pitem->cellCount();
+
 	if (pitem == pFirstActiveItem)
 	{
 		pFirstActiveItem = pitem->pNextActive;
@@ -199,33 +221,26 @@ void AlgXPointer::cover(ItemHeader* pitem)
 		hide(pcell);
 		pcell = pcell->pDown;
 	};
-	
+
+	pitem->cellCount();
 }
 ///////////////////////////////////////////////////////////////////////////////
 void AlgXPointer::coverSeqItems(XCell* pcell)
 {
-	for (XCell* pleft = pcell->pLeft; pleft; pleft = pleft->pLeft)
-	{
-		cover(pleft->pTop);
-	}
+	pcell->pTop->cellCount();
 
-	for (XCell* pright = pcell->pRight; pright; pright = pright->pRight)
+	for (XCell* pright = pcell->pRight; pright != pcell; pright = pright->pRight)
 	{
 		cover(pright->pTop);
 	}
+	pcell->pTop->cellCount();
 }
 ///////////////////////////////////////////////////////////////////////////////
 void AlgXPointer::hide(XCell* pcell)
 {
-	XCell* left = pcell->pLeft;
-	while (left)
-	{
-		unlinkCellVertically(left);
-		left = left->pLeft;
-	}
 
 	XCell* right = pcell->pRight;
-	while (right)
+	while (right != pcell)
 	{
 		unlinkCellVertically(right);
 		right = right->pRight;
@@ -236,22 +251,18 @@ void AlgXPointer::hide(XCell* pcell)
 void AlgXPointer::unhide(XCell* pcell)
 {
 	XCell* left = pcell->pLeft;
-	while (left)
+	while (left != pcell)
 	{
 		relinkCellVertically(left);
 		left = left->pLeft;
 	}
 
-	XCell* right = pcell->pRight;
-	while (right)
-	{
-		relinkCellVertically(right);
-		right = right->pRight;
-	}
 }
 ///////////////////////////////////////////////////////////////////////////////
 void AlgXPointer::uncover(ItemHeader* pitem)
 {
+	pitem->cellCount();
+
 	if (pitem->pPrevActive == nullptr)
 	{
 		pFirstActiveItem = pitem;
@@ -272,19 +283,19 @@ void AlgXPointer::uncover(ItemHeader* pitem)
 		pcell = pcell->pDown;
 	}
 
+	pitem->cellCount();
+
 }
 ///////////////////////////////////////////////////////////////////////////////
 void AlgXPointer::uncoverSeqItems(XCell* pcell)
 {
-	for (XCell* pleft = pcell->pLeft; pleft; pleft = pleft->pLeft)
+	cellCount();
+	for (XCell* pleft = pcell->pLeft; pleft != pcell; pleft = pleft->pLeft)
 	{
 		uncover(pleft->pTop);
+		cellCount();
 	}
-
-	for (XCell* pright = pcell->pRight; pright; pright = pright->pRight)
-	{
-		uncover(pright->pTop);
-	}
+	
 }
 ///////////////////////////////////////////////////////////////////////////////
 void AlgXPointer::format(ostream& stream)
@@ -320,9 +331,15 @@ void AlgXPointer::format(ostream& stream)
 		stream << setw(5) << pitem->pName;
 	}
 	stream << endl;
+	stream << setw(8) << "Count";
+	for (auto pitem = pFirstActiveItem; pitem; pitem = pitem->pNextActive)
+	{
+		stream << setw(5) << pitem->Count;
+	}
+	stream << endl;
 	stream << separator;
 
-	unordered_set<XCell*> seen_first_cells;
+	unordered_set<XCell*> seen_cells;
 	XCell** pseq_cells = (XCell**)alloca(nunique_items * sizeof(XCell*));
 
 
@@ -332,25 +349,31 @@ void AlgXPointer::format(ostream& stream)
 		{
 			// Backup to the first cell in the sequence:
 			XCell* pfirst = pcell;
-			while (pfirst->pLeft)
-				pfirst = pfirst->pLeft;
+			//while (pfirst->pLeft)
+			//	pfirst = pfirst->pLeft;
 
 			// See if we have already output it. Skip if we have, else record it.
-			auto iter = seen_first_cells.find(pfirst);
-			if (iter != seen_first_cells.end())
+			auto iter = seen_cells.find(pfirst);
+			if (iter != seen_cells.end())
 				continue;
 
-			seen_first_cells.insert(pfirst);
 
 			memset(pseq_cells, 0, nunique_items * sizeof(XCell*));
 
 			// Record all the items used for this sequence:
 			stream << setw(8) << "";
-			for (XCell* poutput_cell = pfirst; poutput_cell; poutput_cell = poutput_cell->pRight)
+
+			XCell* poutput_cell = pfirst;
+			do
 			{
+				seen_cells.insert(poutput_cell);
+
 				int index = item_indexes[poutput_cell->pTop];
 				pseq_cells[index] = poutput_cell;
-			}
+
+				poutput_cell = poutput_cell->pRight;
+				
+			} while (poutput_cell != pfirst);
 
 			// Write the items:
 			for (int i = 0; i < nunique_items; i++)
@@ -394,6 +417,9 @@ bool AlgXPointer::exactCover()
 	{
 		loopCount++;
 		TRACE("%lli:%i - %s\n", loopCount, l, StateName(state));
+		cellCount();
+		//print();
+
 
 		switch (state)
 		{
@@ -416,8 +442,23 @@ bool AlgXPointer::exactCover()
 		{
 			auto pcur_item = pFirstActiveItem;
 
+#define CHOOSE_MIN
+#ifdef CHOOSE_MIN
+			int min_count = pcur_item->Count;
+
+			for (auto pnext = pcur_item->pNextActive; pnext; pnext = pnext->pNextActive)
+			{
+				if (pnext->Count < min_count)
+				{
+					pcur_item = pnext;
+					min_count = pcur_item->Count;
+				}
+			}
+
+#endif
 			if (pcur_item->pTopCell == nullptr)
 			{
+				assert(pcur_item->Count == 0);
 				// No sequences remain that could cover this item.
 				state = ax_LeaveLevel;
 				break;
@@ -445,7 +486,9 @@ bool AlgXPointer::exactCover()
 
 		case ax_TryAgain:
 
+			cellCount();
 			uncoverSeqItems(px[l]);
+			cellCount();
 
 			if (px[l]->pDown == nullptr)
 			{
@@ -521,6 +564,7 @@ bool AlgXPointer::testUncoverCover()
 	{
 		ItemHeader* pitem = iter->second;
 
+		//print();
 		cover(pitem);
 
 		if (prev)
@@ -528,7 +572,9 @@ bool AlgXPointer::testUncoverCover()
 			cover(prev);
 			uncover(prev);
 		}
+		//print();
 		uncover(pitem);
+		//print();
 		format(after);
 		if (!print_diff(before.str(), after.str()))
 		{
@@ -599,5 +645,6 @@ void ptr_very_large_problem()
 	assert(b);
 
 	cout << "Very large problem with pointers solution took: " << alg.setupTime << " microseconds for setup and " <<
-		alg.runTime << " microseconds to run.\n";
+		alg.runTime << " microseconds to run and " << alg.loopCount << " iterations.\n";
+
 }

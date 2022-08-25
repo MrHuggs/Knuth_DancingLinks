@@ -30,6 +30,10 @@ public:
 	ItemHeader* pNextActive;
 
 	XCell* pTopCell;
+
+	int cellCount() const;
+
+	int Count;
 };
 
 class XCell
@@ -42,7 +46,7 @@ public:
 
 	ItemHeader* pTop;
 
-	// Next and previous cells in this sequence. Null terminated in both directions.
+	// Next and previous cells in this sequence. Forms a loop.
 	XCell* pLeft;
 	XCell* pRight;
 
@@ -52,17 +56,14 @@ public:
 
 	const char *format()
 	{
-		XCell* pcell = this;
-		while (pcell->pLeft)
-			pcell = pcell->pLeft;
-
 		const int bufsize = 256;
 		static char buf[bufsize];	// Yes, this is not thread safe.
 
 		buf[0] = 0;
 		size_t curlen = 0;
 
-		while (pcell)
+		XCell* pcell = this;
+		do
 		{
 			auto n = strlen(pcell->pTop->pName);
 
@@ -78,7 +79,8 @@ public:
 			curlen++;
 
 			pcell = pcell->pRight;
-		}
+		} while (pcell != this);
+
 		buf[curlen] = 0;
 		assert(curlen < bufsize);
 
@@ -114,6 +116,14 @@ class AlgXPointer
 	void unhide(XCell* pcell);
 	void uncover(ItemHeader* pitem);
 	void uncoverSeqItems(XCell* pcell);
+
+	void cellCount()
+	{
+		for (auto pitem = pFirstActiveItem; pitem; pitem = pitem->pNextActive)
+		{
+			pitem->cellCount();
+		}
+	}
 
 public:
 	AlgXPointer(const std::vector< std::vector<const char*> >& sequences);
