@@ -31,8 +31,6 @@ public:
 
 	XCell* pTopCell;
 
-	int cellCount() const;
-
 	int Count;
 };
 
@@ -100,6 +98,8 @@ class AlgXPointer
 			return strcmp(p1, p2) < 0;
 		}
 	};
+	// All of the item headers, including ones that might not be currently
+	// active.
 	std::map<const char*, ItemHeader*, CmpSame> itemHeaders;
 
 	ItemHeader* getItem(const char* pc);
@@ -117,13 +117,12 @@ class AlgXPointer
 	void uncover(ItemHeader* pitem);
 	void uncoverSeqItems(XCell* pcell);
 
-	void cellCount()
-	{
-		for (auto pitem = pFirstActiveItem; pitem; pitem = pitem->pNextActive)
-		{
-			pitem->cellCount();
-		}
-	}
+
+#ifdef NDEBUG
+	void assertValid() const {}
+#else
+	void assertValid() const;
+#endif
 
 public:
 	AlgXPointer(const std::vector< std::vector<const char*> >& sequences);
