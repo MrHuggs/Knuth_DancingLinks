@@ -33,7 +33,7 @@ void AlgXPointer::assertValid() const
 		const char* pc = iter->first;
 		ItemHeader* pitem = iter->second;
 
-		assert(strcmp(pc, pitem->pName) == 0);;
+		assert(strcmp(pc, pitem->pName) == 0);
 
 		int count = 0;
 		XCell* prev = nullptr;
