@@ -8,7 +8,8 @@
 #include <string>
 #include <iostream>
 #include <vector>
-
+#include <map>
+#include <unordered_set>
 
 // Want conditional output that completely compiles away when not needed.
 #ifdef ENABLE_TRACE
@@ -110,79 +111,169 @@ inline bool print_diff(std::string s1, std::string s2)
 	return equal;
 }
 ///////////////////////////////////////////////////////////////////////////////
-class ConvertedCharProblem
+// Special comparator so we can make a map of string pointers eliminating
+// duplicates:
+struct CmpSame
 {
-public:
-
-	std::vector< std::vector<const char*> > stringPointers;
-
-	ConvertedCharProblem(const char* pstrings[], int max_strings = std::numeric_limits<int>::max())
+	bool operator()(const char* p1, const char* p2) const
 	{
-		const char* pc;
-		while ((pc = *pstrings++) != nullptr)
-		{
-			std::vector<const char*> ptr_vec;
-
-			while (*pc)
-			{
-				char* pbuf = new char[2];
-				pbuf[0] = *pc++;
-				pbuf[1] = 0;
-				ptr_vec.emplace_back(pbuf);
-			}
-			stringPointers.emplace_back(ptr_vec);
-
-			if (stringPointers.size() == max_strings)
-				break;
-		}
-
-	}
-	~ConvertedCharProblem()
-	{
-		for (auto ptr_vec : stringPointers)
-		{
-			for (auto pc : ptr_vec)
-			{
-				delete[] pc;
-			}
-		}
-	}
-
-	void Print() const
-	{
-		print_sequences(stringPointers);
+		return strcmp(p1, p2) < 0;
 	}
 };
-//////////////////////////////////////////////////////////////////////////////////
-class StringArrayConverter
+
+struct ExactCoverWithColors
 {
+	// Description of an exact cover with colors problem.
+	std::vector<const char*> primary_options;
+	std::vector<const char*> colors;
+	std::vector<const char*> secondary_options;
+	std::vector< std::vector<const char*> > sequences;
+};
+
+//////////////////////////////////////////////////////////////////////////////////
+class StringArrayConverterWithColors
+{
+
+	static void sortVector(std::vector<const char*> &vec)
+	{
+		sort(vec.begin(), vec.end(), [](const char*& a, const char*& b) { return strcmp(a, b) < 0;	});
+
+	}
 public:
 
+	ExactCoverWithColors Problem;
 
-	std::vector< std::vector<const char*> > stringPointers;
-
-	StringArrayConverter(const char* pstrings[], int max_strings = std::numeric_limits<int>::max())
+	StringArrayConverterWithColors(const char* pstrings[], int max_strings = std::numeric_limits<int>::max())
 	{
+		// Tracks items we have see and if they are secondary:
+		std::map<const char*, bool, CmpSame> items;
+		std::map<const char*, int, CmpSame> colors;		// Using a map for expediency, but really just need a set.
+
 		while (*pstrings != nullptr)
 		{
 			std::vector<const char*> ptr_vec;
 
 			while (*pstrings)
 			{
+				auto sep = strchr(*pstrings, ':');
+
+				if (sep != nullptr)
+				{
+					// And item with a separator, so the item must be secondary:
+					auto found_color = colors.find(sep + 1);
+					if (found_color == colors.end())
+					{
+						auto pc = _strdup(sep + 1);
+						colors[pc] = 1;
+					}
+
+					int nc = (int) (sep - *pstrings);
+					char* pitem = (char*) alloca(nc + 1);
+					memcpy(pitem, *pstrings, nc);
+					pitem[nc] = 0;
+
+					auto found_item = items.find(pitem);
+					if (found_item == items.end())
+					{
+						auto pc = _strdup(pitem);
+						items[pc] = true;		// Mark as secondary
+					}
+					else
+					{
+						found_item->second = true;
+					}
+				}
+				else
+				{
+					auto found_item = items.find(*pstrings);
+					if (found_item == items.end())
+					{
+						// Haven't seen the item before, so we'll add it, assuming it is not
+						// secondary:
+						items[_strdup (*pstrings)] = false;
+					}
+				}
+
 				ptr_vec.push_back(*pstrings++);
-
 			}
-			stringPointers.emplace_back(ptr_vec);
+			Problem.sequences.emplace_back(ptr_vec);
 
-			if (stringPointers.size() == max_strings)
+			if (Problem.sequences.size() == max_strings)
 				break;
 
 			pstrings++;
 		}
+		for (auto it : items)
+		{
+			if (it.second)
+			{
+				Problem.secondary_options.emplace_back(it.first);
+			}
+			else
+			{
+				Problem.primary_options.emplace_back(it.first);
+			}
+		}
+		for (auto it : colors)
+			Problem.colors.emplace_back(it.first);
+
+		sortVector(Problem.primary_options);
+		sortVector(Problem.colors);
+		sortVector(Problem.secondary_options);
 	}
+
+	~StringArrayConverterWithColors()
+	{
+		// All the placeholder strings were allocated with strdup; hence free with free().
+		for (auto pc : Problem.primary_options)
+		{
+			free((void*)pc);
+		}
+		for (auto pc : Problem.secondary_options)
+		{
+			free((void*)pc);
+		}
+		for (auto pc : Problem.colors)
+		{
+			free((void*)pc);
+		}
+	}
+
+
 
 	void Print() const
 	{
-		print_sequences(stringPointers);
+		std::cout << "ExactCoverWithColors problem with " << Problem.primary_options.size() << " primary options:" << std::endl;
+		printVector(Problem.primary_options);
+		std::cout << Problem.secondary_options.size() << " secondary options:" << std::endl;
+		printVector(Problem.secondary_options);
+		std::cout << Problem.colors.size() << " colors:" << std::endl;
+		printVector(Problem.colors);
+
+		std::cout << Problem.sequences.size() << " Sequences:" << std::endl;
+		for (auto seq : Problem.sequences)
+		{
+			printVector(seq, 32);
+		}
+	}
+private:
+	static void printVector(const std::vector<const char *>& v, int items_per_line = 16)
+	{
+		int nc = 0;
+
+		for (const char* pc : v)
+		{
+			if (nc == items_per_line)
+			{
+				std::cout << std::endl;
+				nc = 0;
+			}
+			else if (nc > 0)
+				std::cout << " ";
+
+			nc++;
+			std::cout << pc;
+		}
+		std::cout << std::endl;
 	}
 };

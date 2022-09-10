@@ -9,49 +9,19 @@ using namespace std;
 #include <crtdbg.h>
 #include <cassert>
 
-void unit_test();
-void small_problems();
-void large_problem();
-
-void x_small_problems();
-void x_large_problem();
-void x_very_large_problem();
-bool exact_cover_strings(const vector< vector<const char*> >& sequences);
-
-void ptr_small_problems();
-void ptr_large_problem();
-void ptr_very_large_problem();
+void x_small_problem();
 
 ///////////////////////////////////////////////////////////////////////////////
-// Test strings where each sequence is a bunch of characters. This is the form
-// Knuth gives his exampes:
-const char* small_char_problems[] =
-{
-	"a", nullptr,
-	"a", "b", nullptr,
-	"a","ab","c", nullptr,
-	"ce", "adg", "bcf",	"adf", "bg", "deg", nullptr,
-	"147", "14", "457", "356", "2367", "27", nullptr,
-	nullptr
-};
+// Figure 49, page 87 of 7.2.2.1:
 
-const char* large_char_problem[] = {
-	"svoxm", "shown", "ogipc", "hxmtq", "djxtf", "elroa", "hzytp", "gtnc", "zgwfc", "dvzwf", "oayuc", "rzgyt",
-	"bgxtq", "jlxan", "oaqic", "jzxoq", "sdogw", "loafp", "dhlfc", "sdbkw", "drknu", "jogwt", "zvpe", "ehxgp",
-	"sdev", "koznf", "dkvap", "jtqfp", "hjryu", "dejot", "sojf", "sekgw", "twrn", "ejvyt", "hjbpc", "lynqc",
-	"dboaf", "hwad", "sejvp", "quev", "gwlk", "lzayc", "zgwym", "segyi", "mtkc", "jxfai", "shkyt", "odpc",
-	"zlkc", "rtkn", "sjlnc", "boytu", "ohiv", "hbvwf", "egynt", "dvxaq", "jlwtq", "skgnp", "sjvzx", "dbgfp", "girp",
-	"tuge", "stqip", "dehwq", "htvx", "hlkqc", "sfqui", "sqgy", "dhwmu", "bwuy", "vnquc", "moaf", "zbgv", "hwun",
-	"drkxc", "xgyfp", "ehvnf", "wup", "seyip", "cbrx", "vxtui", "djrnf", "syvc", "ehrwy", "ehgxa", "dvzgu",
-	"rxaqu", "ofev", "hten", "sganm", "zbwi", "zbuv", "rzwyt", "gwvh", "zxbc", "zxatu", "beh", "hrnfc", "qavc",
-	"jlvwi", "slzxw", "vwmtp", "brmtc", "xqlc", "xqle", "sbzot", "sbzyc", "qikn", "sotq", "dblri", "jlaqu", "rgtp",
-	"oqa", "sdhni", "bkgai", "mgit", "dhown", "gxytc", "zjnc", "djhmp", "jlrmf", "djlzg", "bkoqf", "sbhoq", "ognup",
-	"jqtn", "oatup", "lvxwy", "oxgk", "minc", "vgin", "bjrnp", "euamf", "owytu", "sbomq", "jgupc", "sqvx", "hanmi",
-	"bjkmc", "sayfc", "sehrg", "bowaq", "sqpx", "atfh", "zsrn", "dbvgm", "hlogt", "djoxg", "vozym", "duvc", "elrka",
-	"dekzn", "rogmq", "ozek", "evznc", "kgwip", "owv", "sjknq", "bwqip", "juie", "dqan", "jqul", "zsfn", "dekou",
-	"hiej",
-	"mjuv",	// Not that if you remove this list item, the problem is not solvable.
-	nullptr
+
+const char* knuth_sample[] = {
+	"p", "q", "x", "y:A", nullptr,
+	"p", "r", "x:A", "y", nullptr,
+	"p", "x:B", nullptr,
+	"q", "x:A", nullptr,
+	"r", "y:B", nullptr,
+	nullptr,
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -62,25 +32,19 @@ int main()
 
 	// Various combinations of problems you can run by uncommenting.
 
-	// These run the original algorithm, which uses characters as items, and so
-	// is limited in how many items you can have:
-	//unit_test();
-	//small_problems();
-	//large_problem();
 
-
-	// Routines with an x_ prefix run the original algorithm modified to use character
+	// Routines with an c_ prefix run the original algorithm modified to use character
 	// strings as items. The number of items can be unbounded.
-	//x_small_problems();
+	x_small_problem();
 	//x_large_problem();
-	x_very_large_problem();
+
 
 	// Routines with the a ptr_ prefix run an algorithm implemented with pointers, instead
 	// of indices. This is closer to what a modern C++ programmer might write, although
 	// it turns out to be slower.
 	//ptr_small_problems();
 	//ptr_large_problem();
-	ptr_very_large_problem();
+	//ptr_very_large_problem();
 
 	assert(_CrtCheckMemory());
 	cout << "Done!\n";

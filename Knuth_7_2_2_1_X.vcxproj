@@ -139,13 +139,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="AlgXPointer.cpp" />
-    <ClCompile Include="Knuth_7_2_2_1_X.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="XStringValues.cpp" />
+    <ClCompile Include="CStringValues.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="AlgXPointer.h" />
+    <ClInclude Include="AlgCPointer.h" />
     <ClInclude Include="Common.h" />
     <ClInclude Include="ProblemGenerator.h" />
   </ItemGroup>

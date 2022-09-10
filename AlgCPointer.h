@@ -87,7 +87,7 @@ public:
 };
 
 
-class AlgXPointer
+class AlgCPointer
 {
 	ItemHeader* pFirstActiveItem;
 
@@ -125,8 +125,8 @@ class AlgXPointer
 #endif
 
 public:
-	AlgXPointer(const std::vector< std::vector<const char*> >& sequences);
-	~AlgXPointer();
+	AlgCPointer(const std::vector< std::vector<const char*> >& sequences);
+	~AlgCPointer();
 
 	void format(std::ostream& stream);
 	void print();

@@ -9,12 +9,12 @@
 
 #include "Common.h"
 #include "ProblemGenerator.h"
-#include "AlgXPointer.h"
+#include "AlgCPointer.h"
 
 using namespace std;
 ///////////////////////////////////////////////////////////////////////////////
 #ifndef NDEBUG
-void AlgXPointer::assertValid() const
+void AlgCPointer::assertValid() const
 {
 	ItemHeader* pprev = nullptr;
 	for (ItemHeader* pitem = pFirstActiveItem; pitem; pitem = pitem->pNextActive)
@@ -59,7 +59,7 @@ void AlgXPointer::assertValid() const
 }
 #endif
 ///////////////////////////////////////////////////////////////////////////////
-AlgXPointer::~AlgXPointer()
+AlgCPointer::~AlgCPointer()
 {
 	for (auto iter = itemHeaders.begin(); iter != itemHeaders.end(); iter++)
 	{
@@ -74,7 +74,7 @@ AlgXPointer::~AlgXPointer()
 	}
 }
 ///////////////////////////////////////////////////////////////////////////////
-ItemHeader* AlgXPointer::getItem(const char* pc)
+ItemHeader* AlgCPointer::getItem(const char* pc)
 {
 	ItemHeader* pitem;
 	auto it = itemHeaders.find(pc);
@@ -94,7 +94,7 @@ ItemHeader* AlgXPointer::getItem(const char* pc)
 	return pitem;
 }
 ///////////////////////////////////////////////////////////////////////////////
-void AlgXPointer::sortItems()
+void AlgCPointer::sortItems()
 {
 	// Sort the items to match the order in the original AlgorithmX. In general,
 	// this should not make any difference, but is useful for comparing
@@ -121,7 +121,7 @@ void AlgXPointer::sortItems()
 
 }
 ///////////////////////////////////////////////////////////////////////////////
-AlgXPointer::AlgXPointer(const std::vector< std::vector<const char*> >& sequences)
+AlgCPointer::AlgCPointer(const std::vector< std::vector<const char*> >& sequences)
 {
 	auto start_time= std::chrono::high_resolution_clock::now();
 
@@ -205,7 +205,7 @@ AlgXPointer::AlgXPointer(const std::vector< std::vector<const char*> >& sequence
 	assertValid();
 }
 ///////////////////////////////////////////////////////////////////////////////
-void AlgXPointer::unlinkCellVertically(XCell* pcell)
+void AlgCPointer::unlinkCellVertically(XCell* pcell)
 {
 	if (pcell->pUp)
 	{
@@ -224,7 +224,7 @@ void AlgXPointer::unlinkCellVertically(XCell* pcell)
 	assert(pcell->pTop->Count >= 0);
 }
 ///////////////////////////////////////////////////////////////////////////////
-void AlgXPointer::relinkCellVertically(XCell* pcell)
+void AlgCPointer::relinkCellVertically(XCell* pcell)
 {
 	if (pcell->pUp)
 	{
@@ -243,7 +243,7 @@ void AlgXPointer::relinkCellVertically(XCell* pcell)
 	pcell->pTop->Count++;
 }
 ///////////////////////////////////////////////////////////////////////////////
-void AlgXPointer::cover(ItemHeader* pitem)
+void AlgCPointer::cover(ItemHeader* pitem)
 {
 	if (pitem == pFirstActiveItem)
 	{
@@ -269,7 +269,7 @@ void AlgXPointer::cover(ItemHeader* pitem)
 
 }
 ///////////////////////////////////////////////////////////////////////////////
-void AlgXPointer::coverSeqItems(XCell* pcell)
+void AlgCPointer::coverSeqItems(XCell* pcell)
 {
 	for (XCell* pright = pcell->pRight; pright != pcell; pright = pright->pRight)
 	{
@@ -277,7 +277,7 @@ void AlgXPointer::coverSeqItems(XCell* pcell)
 	}
 }
 ///////////////////////////////////////////////////////////////////////////////
-void AlgXPointer::hide(XCell* pcell)
+void AlgCPointer::hide(XCell* pcell)
 {
 
 	XCell* right = pcell->pRight;
@@ -289,7 +289,7 @@ void AlgXPointer::hide(XCell* pcell)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-void AlgXPointer::unhide(XCell* pcell)
+void AlgCPointer::unhide(XCell* pcell)
 {
 	XCell* left = pcell->pLeft;
 	while (left != pcell)
@@ -300,7 +300,7 @@ void AlgXPointer::unhide(XCell* pcell)
 
 }
 ///////////////////////////////////////////////////////////////////////////////
-void AlgXPointer::uncover(ItemHeader* pitem)
+void AlgCPointer::uncover(ItemHeader* pitem)
 {
 	if (pitem->pPrevActive == nullptr)
 	{
@@ -323,7 +323,7 @@ void AlgXPointer::uncover(ItemHeader* pitem)
 	}
 }
 ///////////////////////////////////////////////////////////////////////////////
-void AlgXPointer::uncoverSeqItems(XCell* pcell)
+void AlgCPointer::uncoverSeqItems(XCell* pcell)
 {
 	for (XCell* pleft = pcell->pLeft; pleft != pcell; pleft = pleft->pLeft)
 	{
@@ -331,7 +331,7 @@ void AlgXPointer::uncoverSeqItems(XCell* pcell)
 	}
 }
 ///////////////////////////////////////////////////////////////////////////////
-void AlgXPointer::format(ostream& stream)
+void AlgCPointer::format(ostream& stream)
 {
 	size_t nunique_items = itemHeaders.size();
 
@@ -420,12 +420,12 @@ void AlgXPointer::format(ostream& stream)
 	stream << separator;
 }
 ///////////////////////////////////////////////////////////////////////////////
-void AlgXPointer::print()
+void AlgCPointer::print()
 {
 	format(cout);
 }
 ///////////////////////////////////////////////////////////////////////////////
-bool AlgXPointer::exactCover()
+bool AlgCPointer::exactCover()
 {
 	assert(_CrtCheckMemory());
 	AlgXStates state = ax_Initialize;
@@ -581,7 +581,7 @@ bool AlgXPointer::exactCover()
 	}
 }
 ///////////////////////////////////////////////////////////////////////////////
-bool AlgXPointer::testUncoverCover()
+bool AlgCPointer::testUncoverCover()
 {
 
 	ostringstream  before, after;
@@ -632,12 +632,12 @@ void ptr_small_problems()
 		ConvertedCharProblem converted(pstrings);
 
 		{
-			AlgXPointer alg(converted.stringPointers);
+			AlgCPointer alg(converted.stringPointers);
 			assert(alg.testUncoverCover());
 		}
 
 		{
-			AlgXPointer alg(converted.stringPointers);
+			AlgCPointer alg(converted.stringPointers);
 			bool b = alg.exactCover();
 			assert(b);
 		}
@@ -650,7 +650,7 @@ void ptr_large_problem()
 {
 	ConvertedCharProblem converted(large_char_problem);
 
-	AlgXPointer alg(converted.stringPointers);
+	AlgCPointer alg(converted.stringPointers);
 
 	bool b = alg.exactCover();
 
@@ -667,7 +667,7 @@ void ptr_very_large_problem()
 	ProblemGenerator generator;
 	generator.Generate();
 
-	AlgXPointer alg(generator.Sequences);
+	AlgCPointer alg(generator.Sequences);
 
 	bool b = alg.exactCover();
 
