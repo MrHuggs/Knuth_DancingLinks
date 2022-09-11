@@ -6,7 +6,6 @@
 #include <iostream>
 #include <iomanip>
 #include <cassert>
-#include <sstream>
 #include <map>
 #include <chrono>
 
@@ -566,9 +565,10 @@ static const char *format_sequence(int q)
 
 		int nc;
 		const char* pcolor_name = "";
-		if (cells[q].color > 0)
+		int color = cells[cells[q].top].color;
+		if (color > 0)
 		{
-			pcolor_name = pproblem->colors[cells[q].color - 1];
+			pcolor_name = pproblem->colors[color - 1];
 		}
 		nc = (int)strlen(pcolor_name);
 
@@ -605,6 +605,7 @@ static const char *format_sequence(int q)
 //
 bool exact_cover_strings(const ExactCoverWithColors& problem)
 {
+	//problem.print();
 	assert(_CrtCheckMemory());
 	AlgXStates state = ax_Initialize;
 
@@ -618,7 +619,7 @@ bool exact_cover_strings(const ExactCoverWithColors& problem)
 	setup_complete = std::chrono::high_resolution_clock::now();
 	loop_count = 0;
 
-	print();		// If you want to see Table 1.
+	//print();		// If you want to see Table 1.
 	int i, p, l = -1;
 
 	// This stores the index of our choice at each level.
@@ -749,7 +750,7 @@ bool exact_cover_strings(const ExactCoverWithColors& problem)
 			if (rval == true)
 			{
 				cout << "Cover found:" << endl;
-				print();
+				//print();
 				// To output the actual strings:
 				for (int lout = 0; lout < l; lout++)
 				{
@@ -759,7 +760,10 @@ bool exact_cover_strings(const ExactCoverWithColors& problem)
 				}
 			}
 			else
+			{
 				cout << "FAILED!\n";
+				//print();
+			}
 
 			assert(_CrtCheckMemory());
 
@@ -794,10 +798,8 @@ const char* knuth_sample[];
 void x_small_problem()
 {
 	StringArrayConverterWithColors converted(knuth_sample);
-	converted.Print();
 
 	bool b = exact_cover_strings(converted.Problem);
-
 
 
 }

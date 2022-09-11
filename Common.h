@@ -128,6 +128,37 @@ struct ExactCoverWithColors
 	std::vector<const char*> colors;
 	std::vector<const char*> secondary_options;
 	std::vector< std::vector<const char*> > sequences;
+
+	void format(std::ostream& stream) const
+	{
+		stream << "ExactCoverWithColors problem." << std::endl;
+
+		stream << primary_options.size() << " primary options." << std::endl;
+		for (auto opt : primary_options)
+			stream << "\t" << opt << std::endl;
+
+		stream << colors.size() << " colors." << std::endl;
+		for (auto opt : colors)
+			stream << "\t" << opt << std::endl;
+
+		stream << secondary_options.size() << " secondary options." << std::endl;
+		for (auto opt : secondary_options)
+			stream << "\t" << opt << std::endl;
+
+		stream << sequences.size() << " sequences." << std::endl;
+		for (auto seq : sequences)
+		{
+			stream << "\t";
+			for (auto opt : seq)
+				stream << opt << "   ";
+			stream << std::endl;
+		}
+
+	}
+	void print() const
+	{
+		format(std::cout);
+	}
 };
 
 //////////////////////////////////////////////////////////////////////////////////
