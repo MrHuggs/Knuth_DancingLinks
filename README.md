@@ -4,10 +4,13 @@ This branch implements Algorithm C: Exact Cover with Colors.
 
 
 
+## Problem 78
 
-Problem 78. [16 ] Show that it’s quite easy to pack the 27 mathematicians’ names of Fig. 71
-into a 12 × 15 array, with all names reading correctly from left to right.
+With a minor modification, this solves problem 78:
 
+Show that itâ€™s quite easy to pack the 27 mathematiciansâ€™ names of Fig. 71
+into a 12 Ã— 15 array, with all names reading correctly from left to right.
+```
 w  e  i  e  r  s  t  r  a  s  s  -
 
 m  i  n  k  o  w  s  k  i  -  -  -
@@ -29,3 +32,4 @@ g  l  a  i  s  h  e  r  m  i  t  e
 r  u  n  g  e  m  e  l  l  i  n  -
 
 j  e  n  s  e  n  e  k  n  o  p  p
+```
