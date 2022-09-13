@@ -53,8 +53,10 @@ static  int nsequence_items;		// Total number of characters in all strings
 static  int nprimary_items;
 static  int nsecondary_items;
 
-static map<const char*, int, CmpSame>* pitem_indices;
-static map<const char*, int, CmpSame>* pcolor_indices;
+static map<const char*, int, CmpSame>* pitem_indices = nullptr;
+static map<const char*, int, CmpSame>*pcolor_indices = nullptr;
+
+static map<int, int> *psequence_map = nullptr;
 
 int max_item_len;
 char* pitem_buf;
@@ -121,6 +123,7 @@ static void init_cells()
 {
 	headers = new Cell[ncells];
 	pitem_buf = new char[max_item_len + 1];
+	psequence_map = new map<int, int>();
 
 	headers[0].i = 0;
 	headers[0].pName = "";
@@ -201,7 +204,9 @@ static void init_cells()
 
 	for (int idx_seq = 0; idx_seq < nsequences; idx_seq++)
 	{
-		const vector<const char*> ptr_vec = pproblem->sequences[idx_seq];
+		const vector<const char*> &ptr_vec = pproblem->sequences[idx_seq];
+
+		bool first_in_sequence = true;
 		for (auto pc : ptr_vec)
 		{
 			// Look at the sequence item for the separator, which would indicate this item
@@ -218,6 +223,7 @@ static void init_cells()
 			}
 			else
 			{
+				assert(pitem_indices->find(pc) != pitem_indices->end());
 				idx_item = (*pitem_indices)[pc];
 				idx_color = 0;
 			}
@@ -249,6 +255,12 @@ static void init_cells()
 
 			cells[idx_item].len++;
 
+			if (first_in_sequence)
+			{
+				(* psequence_map)[index] = idx_seq;
+				first_in_sequence = false;
+			}
+
 			index++;
 			pc++;
 		}
@@ -276,6 +288,7 @@ static void destroy_cells()
 	delete[] pitem_buf;
 	delete pitem_indices;
 	delete pcolor_indices;
+	delete psequence_map;
 }
 ///////////////////////////////////////////////////////////////////////////////
 // hide/cover/uncover/unhide functions:
@@ -529,24 +542,31 @@ static void print()
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////
-// Given the id of a cell in a sequence, output the whole sequence.
-static const char *format_sequence(int q)
+static int sequence_start(int q)
 {
 	// Fast forward to the separator:
 	do
 	{
 		q++;
 	} while (cells[q].top > 0);
-
 	// Start of the sequence is the separator's ulink:
 	q = cells[q].ulink;
+
+	return q;
+}
+///////////////////////////////////////////////////////////////////////////////
+// Given the id of a cell in a sequence, output the whole sequence.
+static const char *format_sequence(int q)
+{
+	q = sequence_start(q);
+
+	assert(psequence_map->find(q) != psequence_map->end());
+	int idx_seq = (* psequence_map)[q];
 
 	const int bufsize = 256;
 	static char buf[bufsize];
 
-	buf[0] = 0;
-	size_t curlen = 0;
+	size_t curlen = sprintf_s(buf, "%4i: ", idx_seq);
 
 	do
 	{
@@ -603,7 +623,7 @@ static const char *format_sequence(int q)
 //
 // Main function: print the exact cover of a null-terminated array of string.
 //
-bool exact_cover_strings(const ExactCoverWithColors& problem)
+bool exact_cover_strings(const ExactCoverWithColors& problem, vector<int> *presults)
 {
 	//problem.print();
 	assert(_CrtCheckMemory());
@@ -751,12 +771,19 @@ bool exact_cover_strings(const ExactCoverWithColors& problem)
 			{
 				cout << "Cover found:" << endl;
 				//print();
+				presults->resize(l);
 				// To output the actual strings:
 				for (int lout = 0; lout < l; lout++)
 				{
 					// c will be the cell index of a character in the string we chose.
 					int c = x[lout];
 					cout << "\t" << format_sequence(c) << endl;
+
+					int seq_start = sequence_start(c);
+
+					assert(psequence_map->find(seq_start) != psequence_map->end());
+					int idx_seq = (*psequence_map)[seq_start];
+					(* presults)[lout] = idx_seq;
 				}
 			}
 			else
@@ -799,46 +826,9 @@ void x_small_problem()
 {
 	StringArrayConverterWithColors converted(knuth_sample);
 
-	bool b = exact_cover_strings(converted.Problem);
-
-
+	vector<int> result;
+	bool b = exact_cover_strings(converted.Problem, &result);
 }
-///////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////
-/*
-void x_large_problem()
-{
-	ConvertedCharProblem converted(large_char_problem);
-	//converted.Print();
 
-	bool b = exact_cover_strings(converted.stringPointers);
-
-	assert(b);
-
-	auto setup_dt = std::chrono::duration_cast<std::chrono::microseconds>(setup_complete - start_time);
-	auto run_dt = std::chrono::duration_cast<std::chrono::microseconds>(run_complete - setup_complete);
-
-	cout << "Large problem with strings solution took: " << setup_dt.count() << " microseconds for setup and " <<
-		run_dt.count() << " microseconds to run and " << loop_count << " iterations.\n";
-}
-*/
-///////////////////////////////////////////////////////////////////////////////
-/*
-void x_very_large_problem()
-{
-	ProblemGenerator generator;
-	generator.Generate();
-
-	bool b = exact_cover_strings(generator.Sequences);
-
-	cout << "Result: " << b << endl;
-
-	auto setup_dt = std::chrono::duration_cast<std::chrono::microseconds>(setup_complete - start_time);
-	auto run_dt = std::chrono::duration_cast<std::chrono::microseconds>(run_complete - setup_complete);
-
-	cout << "Very large problem with strings solution took: " << setup_dt.count() << " microseconds for setup and " <<
-		run_dt.count() << " microseconds to run and " << loop_count << " iterations.\n";
-}
-*/
 
 

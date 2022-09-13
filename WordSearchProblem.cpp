@@ -3,18 +3,16 @@
 #include <iostream>
 #include <iomanip>
 #include <cassert>
-#include <map>
 #include <fstream>
 #include <sstream>
-#include <chrono>
 
 #include "Common.h"
-#include "WordSearch.h"
+#include "WordSearchProblem.h"
 
 
 using namespace std;
 ///////////////////////////////////////////////////////////////////////////////
-WordSearch::WordSearch(int w, int h)
+WordSearchProblem::WordSearchProblem(int w, int h)
 {
     width = w;
 	height = h;
@@ -38,7 +36,7 @@ WordSearch::WordSearch(int w, int h)
     }
 }
 ///////////////////////////////////////////////////////////////////////////////
-bool WordSearch::readWordList(const char* pfile_name)
+bool WordSearchProblem::readWordList(const char* pfile_name)
 {
     ifstream file(pfile_name);
     if (!file.is_open())
@@ -62,7 +60,7 @@ bool WordSearch::readWordList(const char* pfile_name)
     return true;
 }
 ///////////////////////////////////////////////////////////////////////////////
-void WordSearch::makeCoverProblem(ExactCoverWithColors* pproblem)
+void WordSearchProblem::makeCoverProblem(ExactCoverWithColors* pproblem)
 {
     pproblem->primary_options.resize(wordList.size());
     for (int i = 0; i < wordList.size(); i++)
@@ -130,4 +128,119 @@ void WordSearch::makeCoverProblem(ExactCoverWithColors* pproblem)
         }
     }
 }
+///////////////////////////////////////////////////////////////////////////////
+bool WordSearchProblem::decodeSequenceItem(const char* pitem, int* prow, int* pcolumn, char* pc)
+{
+    char buf[32];
+    char c;
+    int i = 0;
+    while ((c = *pitem++) != '_')
+    {
+        if (c == 0)
+            return false;
+        buf[i++] = c;
+    }
+    buf[i] = 0;
+    *prow = atoi(buf);
 
+    i = 0;
+    while ((c = *pitem++) != ':')
+    {
+        if (c == 0)
+            return false;
+        buf[i++] = c;
+    }
+    buf[i] = 0;
+    *pcolumn = atoi(buf);
+
+
+    *pc = *pitem;
+
+    return true;
+}
+///////////////////////////////////////////////////////////////////////////////
+WordSearch::WordSearch(int w, int h)
+{
+    width = w;
+    height = h;
+    int nc = w * h;
+    pLetters = new char[w * h];
+    memset(pLetters, 0xff, nc);
+}
+///////////////////////////////////////////////////////////////////////////////
+WordSearch::~WordSearch()
+{
+    delete[] pLetters;
+}
+///////////////////////////////////////////////////////////////////////////////
+char WordSearch::letter(int row, int column) const
+{
+    assert(column >= 0 && column  < width);
+    assert(row >= 0 && row < height);
+    return pLetters[column + row * width];
+}
+///////////////////////////////////////////////////////////////////////////////
+void WordSearch::setLetter(int row, int column, char c)
+{
+    assert(column >= 0 && column < width);
+    assert(row >= 0 && row < height);
+    pLetters[column + row * width] = c;
+}
+///////////////////////////////////////////////////////////////////////////////
+void WordSearch::applySolution(const ExactCoverWithColors& problem, const std::vector<int> results)
+{
+    for (auto idx_seq : results)
+    {
+        auto sequence = problem.sequences[idx_seq];
+        assert(sequence.size() > 1);
+
+
+
+        int row, column;
+        char c;
+
+        for (auto pc : sequence)
+        {
+            if (WordSearchProblem::decodeSequenceItem(pc, &row, &column, &c))
+            {
+                setLetter(row, column, c);
+            }
+        }
+    }
+}
+///////////////////////////////////////////////////////////////////////////////
+void WordSearch::format(std::ostream& stream, int xspacing, int yspacing)
+{
+    char* ppad = (char *)alloca(xspacing + 1);
+    memset(ppad, ' ', xspacing);
+	ppad[xspacing] = 0;
+
+    char* vpad = (char*)alloca(yspacing + 1);
+    memset(vpad, '\n', yspacing);
+    vpad[yspacing] = 0;
+
+    for (int row = 0; row < height; row++)
+    {
+	    for (int column = 0; column < width; column++)
+	    {
+            char c = letter(row, column);
+
+            if (c < 0)
+                c = '-';
+            stream << c;
+            if (column < width - 1)
+                stream << ppad;
+
+	    }
+        stream << endl;
+
+        if (row < height - 1)
+            stream << vpad;
+    }
+
+}
+///////////////////////////////////////////////////////////////////////////////
+void WordSearch::print()
+{
+    format(cout, 2, 1);
+}

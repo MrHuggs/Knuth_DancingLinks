@@ -141,13 +141,12 @@
   <ItemGroup>
     <ClCompile Include="main.cpp" />
     <ClCompile Include="CStringValues.cpp" />
-    <ClCompile Include="WordSearch.cpp" />
+    <ClCompile Include="WordSearchProblem.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="AlgCPointer.h" />
     <ClInclude Include="Common.h" />
     <ClInclude Include="ProblemGenerator.h" />
-    <ClInclude Include="WordSearch.h" />
+    <ClInclude Include="WordSearchProblem.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
