@@ -15,38 +15,36 @@ using namespace std;
 
 ///////////////////////////////////////////////////////////////////////////////
 // Cell structure to match 7.2.2.1 Table 1:
+struct Header
+{
+	int i;
+	const char* pName;
+	int llink;
+	int rlink;
+
+	int slack;
+	int bound;
+};
+
 struct Cell
 {
+	int x;
 	union
 	{
-		int i;
-		int x;
-	};
-	union
-	{
-		const char* pName;
 		int len;
 		int top;
 	};
-	union
+	struct
 	{
-		struct
-		{
-			int ulink;
-			int dlink;
-			int color;
-		};
-		struct
-		{
-			int llink;
-			int rlink;
-		};
+		int ulink;
+		int dlink;
+		int color;
 	};
 };
 
 
 ///////////////////////////////////////////////////////////////////////////////
-static const ExactCoverWithColors* pproblem;
+static const ExactCoverWithMultiplicitiesAndColors* pproblem;
 
 static  int nsequences;
 static  int nsequence_items;		// Total number of characters in all strings
@@ -61,9 +59,16 @@ static map<int, int> *psequence_map = nullptr;
 int max_item_len;
 char* pitem_buf;
 
+static int nheaders;
+static Header* headers;	
 static int ncells;		// Total number of cells:
-static Cell* headers;	// Pointer to the headers (i/name/llink/rlink) in Table 1.
 static Cell* cells;
+
+static int max_depth;
+// This stores the index of our choice at each level.
+static int* x;
+// Array of first tweaks.
+static int* ft;
 ///////////////////////////////////////////////////////////////////////////////
 /// For performance timing:
 static chrono::steady_clock::time_point start_time;
@@ -81,11 +86,14 @@ static void get_counts()
 	nprimary_items = (int) pproblem->primary_options.size();
 	nsecondary_items = (int) pproblem->secondary_options.size();
 
+	max_depth = 0;
+
 	int item_id = 1; // Id's in Knuth's scheme start at 1.
 	for (auto primary : pproblem->primary_options)
 	{
-		max_item_len = max(max_item_len, (int) strlen(primary));
-		(*pitem_indices)[primary] = item_id++;
+		max_item_len = max(max_item_len, (int) strlen(primary.pValue));
+		(*pitem_indices)[primary.pValue] = item_id++;
+		max_depth += primary.v;
 	}
 
 	int idx_color = 1;
@@ -102,15 +110,16 @@ static void get_counts()
 
 	nsequences = (int)pproblem->sequences.size();
 	nsequence_items = 0;
-	for (auto sequence : pproblem->sequences)
+	for (int i = 0; i < pproblem->sequences.size(); i++)
 	{
-		nsequence_items += (int) sequence.size();
+		nsequence_items += (int) pproblem->sequences[i].size();
 	}
 
 	// Calculate the total number of cells needed. Not that this is different
 	// from Algorithm X
 	//
-	ncells = 2 * (2 + nprimary_items + nsecondary_items) + nsequence_items + nsequences;
+	nheaders = 2 + nprimary_items + nsecondary_items;
+	ncells =  2 + nprimary_items + nsecondary_items + nsequence_items + nsequences;
 }
 ///////////////////////////////////////////////////////////////////////////////
 // Initialized the header & cell data as in Table 1:
@@ -121,7 +130,7 @@ static const int unused = -99;
 
 static void init_cells()
 {
-	headers = new Cell[ncells];
+	headers = new Header[nheaders];
 	pitem_buf = new char[max_item_len + 1];
 	psequence_map = new map<int, int>();
 
@@ -129,6 +138,8 @@ static void init_cells()
 	headers[0].pName = "";
 	headers[0].llink = nprimary_items;
 	headers[0].rlink = 1;
+	headers[0].slack = unused;
+	headers[0].bound = unused;
 
 	int index;
 
@@ -139,7 +150,10 @@ static void init_cells()
 		headers[index].i = index;
 		headers[index].llink = index - 1;
 		headers[index].rlink = (index + 1) % (nprimary_items + 1);
-		headers[index].pName = pproblem->primary_options[i];
+		headers[index].pName = pproblem->primary_options[i].pValue;
+		headers[index].slack = pproblem->primary_options[i].v - pproblem->primary_options[i].u;
+		assert(headers[index].slack >= 0);
+		headers[index].bound = pproblem->primary_options[i].v;
 	}
 
 	// Headers for secondary options:
@@ -150,6 +164,8 @@ static void init_cells()
 		headers[index].llink = (i == 0) ? (nprimary_items + nsecondary_items + 1) : index - 1;
 		headers[index].rlink = index + 1;
 		headers[index].pName = pproblem->secondary_options[i];
+		headers[index].slack = unused;
+		headers[index].bound = unused;
 	}
 
 	// Secondary sentinel:
@@ -158,10 +174,11 @@ static void init_cells()
 	headers[index].pName = "";
 	headers[index].llink = index - 1;
 	headers[index].rlink = nprimary_items + 1;
+	headers[index].slack = unused;
+	headers[index].bound = unused;
 
 	//First line of the cell data:
-
-	cells = headers + nprimary_items + nsecondary_items + 2;
+	cells = new Cell[ncells];
 
 	// Special 0 element:
 	cells[0].x = 0;
@@ -227,7 +244,6 @@ static void init_cells()
 				idx_item = (*pitem_indices)[pc];
 				idx_color = 0;
 			}
-			
 
 			cells[index].x = index;
 			cells[index].top = idx_item;
@@ -278,13 +294,13 @@ static void init_cells()
 
 		index++;
 	}
-
 }
 ///////////////////////////////////////////////////////////////////////////////
 // Free any allocated memory:
 static void destroy_cells()
 {
 	delete[] headers;
+	delete[] cells;
 	delete[] pitem_buf;
 	delete pitem_indices;
 	delete pcolor_indices;
@@ -450,6 +466,74 @@ void uncommit(int p, int j)
 	}
 }
 
+void tweak(int x, int p)
+{
+	hide_p(x);
+	int d = cells[x].dlink;
+	cells[p].dlink = d;
+
+	cells[d].ulink = p;
+	cells[p].len--;
+}
+
+void tweak_p(int x, int p)
+{
+	int d = cells[x].dlink;
+	cells[p].dlink = d;
+
+	cells[d].ulink = p;
+	cells[p].len--;
+}
+
+void untweak(int l)
+{
+	int a = ft[l];
+	int p = (a <= nprimary_items + nsecondary_items) ? a : cells[a].top;
+	int x = a;
+	int y = p;
+	int z = cells[p].dlink;
+	cells[p].dlink = x;
+	int k = 0;
+
+
+	while (x != z)
+	{
+		cells[x].ulink = y;
+		k++;
+		unhide_p(x);
+		y = x;
+		x = cells[x].dlink;
+	}
+
+	cells[z].ulink = y;
+	cells[p].len += k;
+
+}
+
+void untweak_p(int l)
+{
+	int a = ft[l];
+	int p = (a <= nprimary_items + nsecondary_items) ? a : cells[a].top;
+	int x = a;
+	int y = p;
+	int z = cells[p].dlink;
+	cells[p].dlink = x;
+	int k = 0;
+
+
+	while (x != z)
+	{
+		cells[x].ulink = y;
+		k++;
+		y = x;
+		x = cells[x].dlink;
+	}
+
+	cells[z].ulink = y;
+	cells[p].len += k;
+
+	uncover_p(p);
+}
 ///////////////////////////////////////////////////////////////////////////////
 // Helper to output a table that looks like Table 2 in 7.2.2.1:
 static void format(ostream& stream)
@@ -479,6 +563,12 @@ static void format(ostream& stream)
 	stream << endl << setw(8) << "RLINK";
 	for (int n = 0; n <= nunique_items + 1; n++)
 		stream << setw(5) << headers[n].rlink;
+	stream << endl << setw(8) << "SLACK";
+	for (int n = 0; n <= nunique_items + 1; n++)
+		stream << setw(5) << headers[n].slack;
+	stream << endl << setw(8) << "BOUND";
+	for (int n = 0; n <= nunique_items + 1; n++)
+		stream << setw(5) << headers[n].bound;
 
 	stream << endl;
 	stream << separator;
@@ -502,30 +592,30 @@ static void format(ostream& stream)
 	stream << endl;
 	stream << separator;
 
-	for (int line_start = 2 * (nunique_items + 2); line_start < ncells; line_start += nunique_items + 2)
+	for (int line_start = nunique_items + 2; line_start < ncells; line_start += nunique_items + 2)
 	{
 		int line_cell_count = min(nunique_items + 2, ncells - line_start);
 
 		stream << setw(8) << "x";
 		for (int n = 0; n < line_cell_count; n++)
-			stream << setw(5) << headers[line_start + n].x;
+			stream << setw(5) << cells[line_start + n].x;
 		stream << endl << setw(8) << "TOP";
 		for (int n = 0; n < line_cell_count; n++)
-			stream << setw(5) << headers[line_start + n].top;
+			stream << setw(5) << cells[line_start + n].top;
 		stream << endl << setw(8) << "ULINK";
 		for (int n = 0; n < line_cell_count; n++)
-			stream << setw(5) << headers[line_start + n].ulink;
+			stream << setw(5) << cells[line_start + n].ulink;
 		stream << endl << setw(8) << "DLINK";
 		for (int n = 0; n < line_cell_count; n++)
-			stream << setw(5) << headers[line_start + n].dlink;
+			stream << setw(5) << cells[line_start + n].dlink;
 		stream << endl << setw(8) << "COLOR";
 		for (int n = 0; n < line_cell_count; n++)
 		{
-			int color = headers[line_start + n].color;
+			int color = cells[line_start + n].color;
 			if (color <= 0)
-				stream << setw(5) << headers[line_start + n].color;
+				stream << setw(5) << cells[line_start + n].color;
 			else
-				stream << setw(5) << pproblem->colors[headers[line_start + n].color - 1];
+				stream << setw(5) << pproblem->colors[cells[line_start + n].color - 1];
 		}
 
 		stream << endl;
@@ -574,7 +664,7 @@ static const char *format_sequence(int q)
 		const char* pitem_name;
 		if (idx_item <= nprimary_items)
 		{
-			pitem_name = pproblem->primary_options[idx_item - 1];
+			pitem_name = pproblem->primary_options[idx_item - 1].pValue;
 		}
 		else
 		{
@@ -620,12 +710,10 @@ static const char *format_sequence(int q)
 	return buf;
 }
 ///////////////////////////////////////////////////////////////////////////////
-//
-// Main function: print the exact cover of a null-terminated array of string.
-//
-bool exact_cover_strings(const ExactCoverWithColors& problem, vector<int> *presults)
+///////////////////////////////////////////////////////////////////////////////
+bool exact_cover_strings(const ExactCoverWithMultiplicitiesAndColors& problem, vector<int> *presults)
 {
-	//problem.print();
+	problem.print();
 	assert(_CrtCheckMemory());
 	AlgXStates state = ax_Initialize;
 
@@ -639,14 +727,15 @@ bool exact_cover_strings(const ExactCoverWithColors& problem, vector<int> *presu
 	setup_complete = std::chrono::high_resolution_clock::now();
 	loop_count = 0;
 
-	//print();		// If you want to see Table 1.
+	print();		// If you want to see Table 1.
 	int i, p, l = -1;
 
-	// This stores the index of our choice at each level.
-	int* x = new int[nprimary_items + nsecondary_items];
+	x = new int[max_depth];
+	ft = new int[max_depth];
 
 	for (;;)
 	{
+		assert(l <= max_depth);
 		loop_count++;
 		TRACE("%lli:%i - %s\n", loop_count, l, StateName(state));
 
@@ -664,65 +753,131 @@ bool exact_cover_strings(const ExactCoverWithColors& problem, vector<int> *presu
 				state = ax_Cleanup;
 			}
 			else
+			{
 				state = ax_Choose;
+			}
 			break;
 
 		case ax_Choose:
 		{
-			i = headers[0].rlink;
 
-			// A good heuristic for picking the next choice is to pick the item
-			// present in the smallest number of sequences. In a few tests, this
-			// Seems to make a huge difference.
-#define CHOOSE_MIN
-#ifdef CHOOSE_MIN
-			int lbest = cells[i].len;
-			int inext = headers[i].rlink;
+			int smallest_branch_factor = std::numeric_limits<int>::max();
+			int idx_smallest_branch;
 
-			while (inext != 0)
+			for (int j = headers[0].rlink; j !=0; j = headers[j].rlink)
 			{
-				if (cells[inext].len < lbest)
+				int branch_factor = (headers[j].bound - headers[j].slack) - cells[j].len + 1;
+				if (branch_factor < smallest_branch_factor)
 				{
-					i = inext;
-					lbest = cells[i].len;
+					smallest_branch_factor = branch_factor;
+					idx_smallest_branch = j;
 				}
-				inext = headers[inext].rlink;
 			}
-#endif
 
-			state = ax_Cover;
+			if (smallest_branch_factor <= 0)
+			{
+				state = ax_LeaveLevel;
+			}
+			else
+			{
+				i = idx_smallest_branch;
+				state = ax_PrepareToBranch;
+			}
 			break;
 		}
 
-		case ax_Cover:
-			cover_p(i);
+		case ax_PrepareToBranch:
 			x[l] = cells[i].dlink;
-			state = ax_TryX;
+			headers[i].bound--;
 
-			TRACE("\t\t%i - covering: %s\n", l, headers[i].pName);
+			if (headers[i].bound == 0)
+			{
+				cover_p(i);
+			}
+
+			if (headers[i].bound != 0 || headers[i].slack != 0)
+			{
+				ft[l] = x[l];
+			}
+
+			state = ax_PossiblyTweak;
 			break;
 
-		case ax_TryX:
-			if (x[l] == i)
+		case ax_PossiblyTweak:
+			if (headers[i].bound == 0 && headers[i].slack == 0)  // In this case, we are like algorithm C
 			{
-				state = ax_Backtrack;
-				break;
-			}
-
-			p = x[l] + 1;
-			while (p != x[l])
-			{
-				int j = cells[p].top;
-				if (j <= 0)
-					p = cells[p].ulink;
+				if (x[l] != i)
+				{
+					state = ax_TryX;
+				}
 				else
 				{
-					commit(p, j);
-					p++;
+					state = ax_Restore;
+				}
+				continue;
+			}
+			if (cells[i].len <= headers[i].bound - headers[i].slack) // Not enough items remain
+			{
+				state = ax_Restore;
+				continue;
+			}
+			if (x[l] != i)
+			{
+				if (headers[i].bound != 0)
+				{
+					tweak(x[l], i);
+				}
+				else
+				{
+					tweak_p(x[l], i);
 				}
 			}
+			else
+			{
+				if (headers[i].bound != 0)
+				{
+					p = headers[i].llink;
+					int q = headers[i].rlink;
+					headers[p].rlink = q;
+					headers[q].llink = p;
+				}
+			}
+			state = ax_TryX;
+			break;
 
-			TRACE("\t\t%i - trying: %s\n", l, format_sequence(p));
+
+		case ax_TryX:
+
+			if (x[l] != i)
+			{
+				p = x[l] + 1;
+				while (p != x[l])
+				{
+					int j = cells[p].top;
+					if (j <= 0)
+					{
+						p = cells[p].ulink;
+					}
+					else
+					{
+						if (j <= nprimary_items)
+						{
+							headers[j].bound--;
+							if (headers[j].bound == 0)
+							{
+								cover_p(j);
+							}
+						}
+						else
+						{
+							commit(p, j);
+						}
+						p++;
+					}
+				}
+
+				TRACE("\t\t%i - trying: %s\n", l, format_sequence(p));
+			}
 
 			l++;
 			state = ax_EnterLevel;
@@ -738,29 +893,66 @@ bool exact_cover_strings(const ExactCoverWithColors& problem, vector<int> *presu
 					p = cells[p].dlink;
 				else
 				{
-					uncommit(p, j);
+					if (j <= nprimary_items)
+					{
+						headers[j].bound++;
+						if (headers[j].bound == 1)
+						{
+							uncover_p(j);
+						}
+					}
+					else
+					{
+						uncommit(p, j);
+					}
 					p--;
 				}
 			}
 
-			i = cells[x[l]].top;
 			x[l] = cells[x[l]].dlink;
 			state = ax_TryX;
 			break;
-		case ax_Backtrack:
-			uncover_p(i);
+		case ax_Restore:
+			if (headers[i].bound == 0 && headers[i].slack == 0)
+			{
+				uncover_p(i);
+			}
+			else
+			{
+				if (headers[i].bound != 0)
+				{
+					untweak(l);
+				}
+				else
+				{
+					untweak_p(l);
+				}
+			}
+			headers[i].bound++;
+
 			state = ax_LeaveLevel;
 			break;
 		case ax_LeaveLevel:
 			if (l == 0)
 			{
 				state = ax_Cleanup;
+				continue;
 			}
-			else
+
+			l--;
+
+			if (x[l] <= nprimary_items + nsecondary_items)
 			{
-				l--;
-				state = ax_TryAgain;
+				i = x[l];
+				p = headers[i].llink;
+				int q = headers[i].rlink;
+				headers[p].rlink = headers[q].llink;
+				headers[q].llink = i;
+				state = ax_Restore;
+				continue;
 			}
+			i = cells[x[l]].top;
+			state = ax_TryAgain;
 			break;
 
 		case ax_Cleanup:
@@ -777,6 +969,12 @@ bool exact_cover_strings(const ExactCoverWithColors& problem, vector<int> *presu
 				{
 					// c will be the cell index of a character in the string we chose.
 					int c = x[lout];
+
+					if (c <= nprimary_items + nsecondary_items)
+					{
+						continue;
+					}
+
 					cout << "\t" << format_sequence(c) << endl;
 
 					int seq_start = sequence_start(c);
@@ -789,13 +987,15 @@ bool exact_cover_strings(const ExactCoverWithColors& problem, vector<int> *presu
 			else
 			{
 				cout << "FAILED!\n";
-				//print();
+				print();
 			}
 
 			assert(_CrtCheckMemory());
 
-			delete[] x;
 			destroy_cells();
+
+			delete[] ft;
+			delete[] x;
 
 			return rval;
 		}
@@ -824,10 +1024,8 @@ const char* knuth_sample[];
 
 void x_small_problem()
 {
-	StringArrayConverterWithColors converted(knuth_sample);
-
-	vector<int> result;
-	bool b = exact_cover_strings(converted.Problem, &result);
+//	vector<int> result;
+//	bool b = exact_cover_strings(converted.Problem, &result);
 }
 
 

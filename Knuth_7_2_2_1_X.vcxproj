@@ -140,13 +140,13 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="CStringValues.cpp" />
-    <ClCompile Include="WordSearchProblem.cpp" />
+    <ClCompile Include="MStringValues.cpp" />
+    <ClCompile Include="PartridgePuzzle.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Common.h" />
+    <ClInclude Include="PartridgePuzzle.h" />
     <ClInclude Include="ProblemGenerator.h" />
-    <ClInclude Include="WordSearchProblem.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

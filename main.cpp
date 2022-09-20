@@ -1,7 +1,8 @@
 
 #include <iostream>
-#include "ProblemGenerator.h"
-#include "WordSearchProblem.h"
+
+#include "Common.h"
+#include "PartridgePuzzle.h"
 using namespace std;
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -10,49 +11,71 @@ using namespace std;
 #include <crtdbg.h>
 #include <cassert>
 
+bool exact_cover_strings(const ExactCoverWithMultiplicitiesAndColors& problem, vector<int>* presults);
+
 void x_small_problem();
 
-///////////////////////////////////////////////////////////////////////////////
-// Figure 49, page 87 of 7.2.2.1:
-const char* knuth_sample[] = {
-	"p", "q", "x", "y:A", nullptr,
-	"p", "r", "x:A", "y", nullptr,
-	"p", "x:B", nullptr,
-	"q", "x:A", nullptr,
-	"r", "y:B", nullptr,
-	nullptr,
-};
 
-
-bool exact_cover_strings(const ExactCoverWithColors& problem, vector<int>* presults);
-
-void mathematicians_problem()
+void partridge_problem()
 {
-	int w = 12;
-	int h = 15;
-	WordSearchProblem word_search_problem(w, h);
-	bool b = word_search_problem.readWordList("mathematicians.txt");
-	assert(b);
+	PartridgePuzzle puzzle(2);
 
-	ExactCoverWithColors problem;
-	word_search_problem.makeCoverProblem(&problem);
+	ExactCoverWithMultiplicitiesAndColors problem;
+
+	puzzle.generateProblem(&problem);
 
 	vector<int> results;
-	b = exact_cover_strings(problem, &results);
-	cout << "Exact cover returned: " << b << endl;
-
-	WordSearch word_search(w, h);
-	word_search.applySolution(problem, results);
-	word_search.print();
+	exact_cover_strings(problem, &results);
 }
+
+
+class SimpleA : public ExactCoverWithMultiplicitiesAndColors
+{
+
+public:
+	SimpleA(int min = 1, int max = 1)
+	{
+		primary_options.resize(1);
+		primary_options[0].pValue = "A";
+		primary_options[0].u = min;
+		primary_options[0].v = max;
+
+		sequences.resize(min);
+		for (int i = 0; i < min; i++)
+		{
+			sequences[i].push_back("A");
+		}
+	}
+	bool test()
+	{
+		vector<int> results;
+		bool b = exact_cover_strings(*this, &results);
+		assert(b);
+		return b;
+	}
+};
+
 ///////////////////////////////////////////////////////////////////////////////
 int main()
 {
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF | _CRTDBG_CHECK_ALWAYS_DF);
+	//_crtBreakAlloc = 0;	// If you need to debug a particular alloc.
 
-	x_small_problem();
+	//x_small_problem();
 
-	mathematicians_problem();
+#if 0
+	{
+		SimpleA sa;
+		sa.test();
+	}
+#else
+	{
+		SimpleA sa(2, 3);
+		sa.test();
+	}
+#endif
+
+	//partridge_problem();
 
 	assert(_CrtCheckMemory());
 	cout << "Done!\n";
