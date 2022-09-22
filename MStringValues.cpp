@@ -766,7 +766,7 @@ bool exact_cover_strings(const ExactCoverWithMultiplicitiesAndColors& problem, v
 
 			for (int j = headers[0].rlink; j !=0; j = headers[j].rlink)
 			{
-				int branch_factor = (headers[j].bound - headers[j].slack) - cells[j].len + 1;
+				int branch_factor = cells[j].len - (headers[j].bound - headers[j].slack) + 1;
 				if (branch_factor < smallest_branch_factor)
 				{
 					smallest_branch_factor = branch_factor;
