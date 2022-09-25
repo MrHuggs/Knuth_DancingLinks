@@ -12,7 +12,7 @@
 #include <unordered_set>
 
 // Want conditional output that completely compiles away when not needed.
-#define ENABLE_TRACE
+//#define ENABLE_TRACE
 #ifdef ENABLE_TRACE
 #include <stdio.h>
 #define TRACE printf
@@ -159,15 +159,22 @@ struct ExactCoverWithMultiplicitiesAndColors
 			stream << "\t" << opt << std::endl;
 
 		stream << sequences.size() << " sequences." << std::endl;
-		for (auto seq : sequences)
+		for (int i = 0; i < sequences.size(); i++)
 		{
-			stream << "\t";
-			for (auto opt : seq)
-				stream << opt << "   ";
-			stream << std::endl;
+			format_sequence(i, stream);
 		}
 
 	}
+
+	void format_sequence(int idx_seq, std::ostream& stream) const
+	{
+		const std::vector<const char*>& seq = sequences[idx_seq];
+		stream << "\t";
+		for (auto opt : seq)
+			stream << opt << "   ";
+		stream << std::endl;
+	}
+
 	void print() const
 	{
 		format(std::cout);

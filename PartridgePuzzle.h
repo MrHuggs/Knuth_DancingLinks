@@ -10,8 +10,6 @@ class PartridgePuzzle
 	std::vector<std::string> positionNames;
 	std::vector<std::string> squareIds;
 
-	std::vector<std::string> squaresWithColor;
-
 
 public:
 

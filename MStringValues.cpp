@@ -468,8 +468,8 @@ void uncommit(int p, int j)
 
 void tweak(int x, int p)
 {
-	hide_p(x);
-	int d = cells[x].dlink;
+	hide_p(x);					// Hide sequence x, and unlink the sequences before x from 
+	int d = cells[x].dlink;     // the list of sequences for item p.
 	cells[p].dlink = d;
 
 	cells[d].ulink = p;
@@ -653,7 +653,7 @@ static const char *format_sequence(int q)
 	assert(psequence_map->find(q) != psequence_map->end());
 	int idx_seq = (* psequence_map)[q];
 
-	const int bufsize = 256;
+	const int bufsize = 2048;
 	static char buf[bufsize];
 
 	size_t curlen = sprintf_s(buf, "%4i: ", idx_seq);
@@ -711,9 +711,9 @@ static const char *format_sequence(int q)
 }
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
-bool exact_cover_strings(const ExactCoverWithMultiplicitiesAndColors& problem, vector<int> *presults)
+bool exact_cover_with_multiplicities_and_colors(const ExactCoverWithMultiplicitiesAndColors& problem, vector<int> *presults)
 {
-	problem.print();
+	//problem.print();
 	assert(_CrtCheckMemory());
 	AlgXStates state = ax_Initialize;
 
@@ -727,7 +727,7 @@ bool exact_cover_strings(const ExactCoverWithMultiplicitiesAndColors& problem, v
 	setup_complete = std::chrono::high_resolution_clock::now();
 	loop_count = 0;
 
-	print();		// If you want to see Table 1.
+	//print();		// If you want to see Table 1.
 	int i, p, l = -1;
 
 	x = new int[max_depth];
@@ -816,8 +816,9 @@ bool exact_cover_strings(const ExactCoverWithMultiplicitiesAndColors& problem, v
 				}
 				continue;
 			}
-			if (cells[i].len <= headers[i].bound - headers[i].slack) // Not enough items remain
+			if (cells[i].len < headers[i].bound - headers[i].slack) // Not enough items remain
 			{
+				//assert(false);	// Why should this occur if we already checked for 0 branching factor?
 				state = ax_Restore;
 				continue;
 			}
@@ -910,7 +911,7 @@ bool exact_cover_strings(const ExactCoverWithMultiplicitiesAndColors& problem, v
 			}
 
 			x[l] = cells[x[l]].dlink;
-			state = ax_TryX;
+			state = ax_PossiblyTweak;
 			break;
 		case ax_Restore:
 			if (headers[i].bound == 0 && headers[i].slack == 0)
@@ -961,7 +962,7 @@ bool exact_cover_strings(const ExactCoverWithMultiplicitiesAndColors& problem, v
 
 			if (rval == true)
 			{
-				cout << "Cover found:" << endl;
+				TRACE("Cover found:\n");
 				//print();
 				presults->resize(l);
 				// To output the actual strings:
@@ -975,7 +976,7 @@ bool exact_cover_strings(const ExactCoverWithMultiplicitiesAndColors& problem, v
 						continue;
 					}
 
-					cout << "\t" << format_sequence(c) << endl;
+					TRACE("\t%s\n", format_sequence(c));
 
 					int seq_start = sequence_start(c);
 
@@ -986,8 +987,8 @@ bool exact_cover_strings(const ExactCoverWithMultiplicitiesAndColors& problem, v
 			}
 			else
 			{
-				cout << "FAILED!\n";
-				print();
+				TRACE("FAILED to find cover:\n");
+				//print();
 			}
 
 			assert(_CrtCheckMemory());
@@ -1002,30 +1003,13 @@ bool exact_cover_strings(const ExactCoverWithMultiplicitiesAndColors& problem, v
 	}
 }
 
-
-/*
-bool exact_cover_strings(const char* pstrings[])
+void print_exact_cover_with_multiplicities_and_colors_times()
 {
-	bool rval;
-	assert(_CrtCheckMemory());
+	auto setup_dt = std::chrono::duration_cast<std::chrono::microseconds>(setup_complete - start_time);
+	auto run_dt = std::chrono::duration_cast<std::chrono::microseconds>(run_complete - setup_complete);
 
-	{
-		ConvertedCharProblem converted(pstrings);
-		rval = exact_cover_strings(converted.stringPointers);
-	}
-
-	assert(_CrtCheckMemory());
-
-	return rval;
-}*/
-
-///////////////////////////////////////////////////////////////////////////////
-const char* knuth_sample[];
-
-void x_small_problem()
-{
-//	vector<int> result;
-//	bool b = exact_cover_strings(converted.Problem, &result);
+	cout << "Exact cover with multiplicities and colors solution took " << setup_dt.count() << " microseconds for setup and " <<
+		run_dt.count() << " microseconds to run.\n";
 }
 
 
