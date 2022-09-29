@@ -142,11 +142,13 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="MStringValues.cpp" />
     <ClCompile Include="PartridgePuzzle.cpp" />
+    <ClCompile Include="WordRectangle.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Common.h" />
     <ClInclude Include="PartridgePuzzle.h" />
     <ClInclude Include="ProblemGenerator.h" />
+    <ClInclude Include="WordRectangle.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

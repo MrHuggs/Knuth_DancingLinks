@@ -3,6 +3,7 @@
 
 #include "Common.h"
 #include "PartridgePuzzle.h"
+#include "WordRectangle.h"
 using namespace std;
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -178,7 +179,39 @@ void partridge_problem()
 	}
 	print_exact_cover_with_multiplicities_and_colors_times();
 }
+///////////////////////////////////////////////////////////////////////////////
+void world_rectangle_problem()
+{
+	WordRectangle word_rectangle;
 
+	bool b = word_rectangle.readWords("test_words.txt");
+	assert(b);
+
+	ExactCoverWithMultiplicitiesAndColors problem;
+	word_rectangle.generateProblem(&problem);
+
+	problem.print();
+
+	vector<int> results;
+	b = exact_cover_with_multiplicities_and_colors(problem, &results);
+	if (b)
+	{
+		cout << "Word rectangle found" << endl;
+		for (int i = 0; i < results.size(); i++)
+		{
+			problem.format_sequence(results[i], cout);
+		}
+		cout << "Resulting rectangle:" << endl << endl;
+		word_rectangle.writeRectangle(problem, results);
+		cout << endl;
+	}
+	else
+	{
+		cout << "Words cannot be placed." << endl;
+	}
+	print_exact_cover_with_multiplicities_and_colors_times();
+
+}
 ///////////////////////////////////////////////////////////////////////////////
 int main()
 {
@@ -187,7 +220,8 @@ int main()
 
 	//test();
 
-	partridge_problem();
+	//partridge_problem();
+	world_rectangle_problem();
 
 	assert(_CrtCheckMemory());
 	cout << "Done!\n";

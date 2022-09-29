@@ -361,5 +361,9 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
 /short_list.txt
 /5letter_words.txt
+
+# Visual studio makes this folder - I think for search and replace.
+/enc_temp_folder

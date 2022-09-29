@@ -1,0 +1,11 @@
+# A short list to replicate the first of Knuth's solutions
+#
+strut
+tease
+eaten
+press
+step
+tear
+rate
+uses
+tens
