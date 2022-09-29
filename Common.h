@@ -37,6 +37,7 @@ enum AlgXStates
 	ax_TryAgain,
 	ax_Restore,
 	ax_LeaveLevel,
+	ax_RecordSolution,
 	ax_Cleanup,
 };
 inline const char* StateName(AlgXStates state)
@@ -52,6 +53,7 @@ inline const char* StateName(AlgXStates state)
 		case ax_TryAgain:	return "TryAgain";
 		case ax_Restore:	return "Restore";
 		case ax_LeaveLevel:	return "LeaveLevel";
+		case ax_RecordSolution:	return "RecordSolution";
 		case ax_Cleanup:	return "Cleanup";
 		default:			assert(0); return "Error";
 	}

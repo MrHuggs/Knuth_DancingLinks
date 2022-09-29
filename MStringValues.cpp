@@ -711,15 +711,14 @@ static const char *format_sequence(int q)
 }
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
-bool exact_cover_with_multiplicities_and_colors(const ExactCoverWithMultiplicitiesAndColors& problem, vector<int> *presults)
+bool exact_cover_with_multiplicities_and_colors(const ExactCoverWithMultiplicitiesAndColors& problem, 
+					vector<vector<int>> *presults, int max_results = 1)
 {
 	//problem.print();
 	assert(_CrtCheckMemory());
 	AlgXStates state = ax_Initialize;
 
 	pproblem = &problem;
-
-	bool rval = false;
 
 	start_time = std::chrono::high_resolution_clock::now();
 	get_counts();
@@ -749,8 +748,7 @@ bool exact_cover_with_multiplicities_and_colors(const ExactCoverWithMultipliciti
 		case ax_EnterLevel:
 			if (headers[0].rlink == 0)
 			{
-				rval = true;
-				state = ax_Cleanup;
+				state = ax_RecordSolution;
 			}
 			else
 			{
@@ -913,6 +911,7 @@ bool exact_cover_with_multiplicities_and_colors(const ExactCoverWithMultipliciti
 			x[l] = cells[x[l]].dlink;
 			state = ax_PossiblyTweak;
 			break;
+
 		case ax_Restore:
 			if (headers[i].bound == 0 && headers[i].slack == 0)
 			{
@@ -933,6 +932,7 @@ bool exact_cover_with_multiplicities_and_colors(const ExactCoverWithMultipliciti
 
 			state = ax_LeaveLevel;
 			break;
+
 		case ax_LeaveLevel:
 			if (l == 0)
 			{
@@ -956,40 +956,47 @@ bool exact_cover_with_multiplicities_and_colors(const ExactCoverWithMultipliciti
 			state = ax_TryAgain;
 			break;
 
-		case ax_Cleanup:
-
-			run_complete = std::chrono::high_resolution_clock::now();
-
-			if (rval == true)
+		case ax_RecordSolution:
+		{
+			assert(l != 0);
+			TRACE("Cover found:\n");
+			//print();
+			vector<int> result;
+			result.resize(l);
+			for (int lout = 0; lout < l; lout++)
 			{
-				TRACE("Cover found:\n");
-				//print();
-				presults->resize(l);
-				// To output the actual strings:
-				for (int lout = 0; lout < l; lout++)
+				// c will be the cell index of a character in the string we chose.
+				int c = x[lout];
+
+				if (c <= nprimary_items + nsecondary_items)
 				{
-					// c will be the cell index of a character in the string we chose.
-					int c = x[lout];
-
-					if (c <= nprimary_items + nsecondary_items)
-					{
-						continue;
-					}
-
-					TRACE("\t%s\n", format_sequence(c));
-
-					int seq_start = sequence_start(c);
-
-					assert(psequence_map->find(seq_start) != psequence_map->end());
-					int idx_seq = (*psequence_map)[seq_start];
-					(* presults)[lout] = idx_seq;
+					continue;
 				}
+
+				TRACE("\t%s\n", format_sequence(c));
+
+				int seq_start = sequence_start(c);
+
+				assert(psequence_map->find(seq_start) != psequence_map->end());
+				int idx_seq = (*psequence_map)[seq_start];
+				result[lout] = idx_seq;
+			}
+			presults->emplace_back(result);
+
+			if (presults->size() >= max_results)
+			{
+				state = ax_Cleanup;
 			}
 			else
 			{
-				TRACE("FAILED to find cover:\n");
-				//print();
+				state = ax_LeaveLevel;
 			}
+			break;
+		}
+
+		case ax_Cleanup:
+
+			run_complete = std::chrono::high_resolution_clock::now();
 
 			assert(_CrtCheckMemory());
 
@@ -998,7 +1005,7 @@ bool exact_cover_with_multiplicities_and_colors(const ExactCoverWithMultipliciti
 			delete[] ft;
 			delete[] x;
 
-			return rval;
+			return presults->size() != 0;
 		}
 	}
 }

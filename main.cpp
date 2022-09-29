@@ -12,7 +12,8 @@ using namespace std;
 #include <crtdbg.h>
 #include <cassert>
 
-bool exact_cover_with_multiplicities_and_colors(const ExactCoverWithMultiplicitiesAndColors& problem, vector<int>* presults);
+bool exact_cover_with_multiplicities_and_colors(const ExactCoverWithMultiplicitiesAndColors& problem, 
+						vector<vector<int>>* presults, int max_results);
 void print_exact_cover_with_multiplicities_and_colors_times();
 
 class SimpleA : public ExactCoverWithMultiplicitiesAndColors
@@ -36,8 +37,8 @@ public:
 	}
 	bool test()
 	{
-		vector<int> results;
-		bool b = exact_cover_with_multiplicities_and_colors(*this, &results);
+		vector<vector<int>> results;
+		bool b = exact_cover_with_multiplicities_and_colors(*this, &results, 1);
 		assert(b);
 		return b;
 	}
@@ -70,8 +71,8 @@ public:
 	}
 	bool test()
 	{
-		vector<int> results;
-		bool b = exact_cover_with_multiplicities_and_colors(*this, &results);
+		vector<vector<int>> results;
+		bool b = exact_cover_with_multiplicities_and_colors(*this, &results, 1);
 		assert(b);
 		return b;
 	}
@@ -107,8 +108,8 @@ public:
 	}
 	bool test()
 	{
-		vector<int> results;
-		bool b = exact_cover_with_multiplicities_and_colors(*this, &results);
+		vector<vector<int>> results;
+		bool b = exact_cover_with_multiplicities_and_colors(*this, &results, 1);
 		assert(b);
 		return b;
 	}
@@ -163,14 +164,21 @@ void partridge_problem()
 
 	puzzle.generateProblem(&problem);
 
-	vector<int> results;
-	bool b = exact_cover_with_multiplicities_and_colors(problem, &results);
+	vector<vector<int>> results;
+	// There are over 1000 solution, which would take a long time. 
+	bool b = exact_cover_with_multiplicities_and_colors(problem, &results, 8);
 	if (b)
 	{
-		cout << "Puzzle can be solved:" << endl;
-		for (int i = 0; i < results.size(); i++)
+		cout << "Found " << results.size() << " solutions:" << endl;
+		for (int idx = 0; idx < results.size(); idx++)
 		{
-			problem.format_sequence(results[i], cout);
+			cout << "Solution:" << endl;
+			const vector<int>& result = results[idx];
+			for (int i = 0; i < result.size(); i++)
+			{
+				problem.format_sequence(result[i], cout);
+			}
+			cout << "(end solution)" << endl;
 		}
 	}
 	else
@@ -192,18 +200,23 @@ void world_rectangle_problem()
 
 	problem.print();
 
-	vector<int> results;
-	b = exact_cover_with_multiplicities_and_colors(problem, &results);
+	vector<vector<int>> results;
+	b = exact_cover_with_multiplicities_and_colors(problem, &results, 100);
 	if (b)
 	{
-		cout << "Word rectangle found" << endl;
-		for (int i = 0; i < results.size(); i++)
+		cout << results.size() << " word rectangle(s) found" << endl;
+
+		for (int idx = 0; idx < results.size(); idx++)
 		{
-			problem.format_sequence(results[i], cout);
+			const vector<int> &result = results[idx];
+			/*for (int i = 0; i < result.size(); i++)
+			{
+				problem.format_sequence(result[i], cout);
+			}*/
+			cout << "Rectangle:" << endl << endl;
+			word_rectangle.writeRectangle(problem, result);
+			cout << endl;
 		}
-		cout << "Resulting rectangle:" << endl << endl;
-		word_rectangle.writeRectangle(problem, results);
-		cout << endl;
 	}
 	else
 	{
@@ -218,7 +231,7 @@ int main()
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF | _CRTDBG_CHECK_ALWAYS_DF);
 	//_crtBreakAlloc = 0;	// If you need to debug a particular alloc.
 
-	//test();
+	test();
 
 	//partridge_problem();
 	world_rectangle_problem();

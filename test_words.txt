@@ -9,3 +9,14 @@ tear
 rate
 uses
 tens
+# second rectangle
+eased
+agile
+sense
+edged
+ease
+aged
+sing
+else
+deed
+
