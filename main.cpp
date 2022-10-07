@@ -192,13 +192,17 @@ void world_rectangle_problem()
 {
 	WordRectangle word_rectangle;
 
-	bool b = word_rectangle.readWords("test_words.txt");
+	bool b = word_rectangle.readWords("20k_words.txt");
+	//bool b = word_rectangle.readWords("test_words.txt");	// A smaller, simpler test case.
 	assert(b);
+	cout << "Word list read successfully." << endl;
 
 	ExactCoverWithMultiplicitiesAndColors problem;
 	word_rectangle.generateProblem(&problem);
 
-	problem.print();
+	cout << "Problem generated." << endl;
+
+	//problem.print();
 
 	vector<vector<int>> results;
 	b = exact_cover_with_multiplicities_and_colors(problem, &results, 100);
@@ -209,6 +213,7 @@ void world_rectangle_problem()
 		for (int idx = 0; idx < results.size(); idx++)
 		{
 			const vector<int> &result = results[idx];
+
 			/*for (int i = 0; i < result.size(); i++)
 			{
 				problem.format_sequence(result[i], cout);
@@ -231,10 +236,10 @@ int main()
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF | _CRTDBG_CHECK_ALWAYS_DF);
 	//_crtBreakAlloc = 0;	// If you need to debug a particular alloc.
 
-	test();
+	//test();
 
-	//partridge_problem();
-	world_rectangle_problem();
+	partridge_problem();
+	//world_rectangle_problem();
 
 	assert(_CrtCheckMemory());
 	cout << "Done!\n";

@@ -765,6 +765,14 @@ bool exact_cover_with_multiplicities_and_colors(const ExactCoverWithMultipliciti
 			for (int j = headers[0].rlink; j !=0; j = headers[j].rlink)
 			{
 				int branch_factor = cells[j].len - (headers[j].bound - headers[j].slack) + 1;
+
+				// This implements the non-sharp preference heuristic.
+				// This is needed for the word rectangle problem, but not in general:
+				if (cells[j].len > 1 && headers[j].pName[0] != '#')
+				{
+					branch_factor += 10000;
+				}
+
 				if (branch_factor < smallest_branch_factor)
 				{
 					smallest_branch_factor = branch_factor;
@@ -816,7 +824,7 @@ bool exact_cover_with_multiplicities_and_colors(const ExactCoverWithMultipliciti
 			}
 			if (cells[i].len < headers[i].bound - headers[i].slack) // Not enough items remain
 			{
-				//assert(false);	// Why should this occur if we already checked for 0 branching factor?
+				// Why should this occur if we already checked for 0 branching factor?
 				state = ax_Restore;
 				continue;
 			}
@@ -947,7 +955,7 @@ bool exact_cover_with_multiplicities_and_colors(const ExactCoverWithMultipliciti
 				i = x[l];
 				p = headers[i].llink;
 				int q = headers[i].rlink;
-				headers[p].rlink = headers[q].llink;
+				headers[p].rlink = i;
 				headers[q].llink = i;
 				state = ax_Restore;
 				continue;

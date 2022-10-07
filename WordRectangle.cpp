@@ -323,7 +323,7 @@ void WordRectangle::writeRectangle(const ExactCoverWithMultiplicitiesAndColors& 
 	memset(horizontal_sequences, -1, sizeof(horizontal_sequences));
 
 	// Look the the sequences selected in the results. Since we created the sequence,
-	// we can realy on the "A0" item being at the front and so forth.
+	// we can rely on the "A0" item being at the front and so forth.
 	int found = 0;
 	for (int i = 0; i < results.size(); i++)
 	{
@@ -344,6 +344,9 @@ void WordRectangle::writeRectangle(const ExactCoverWithMultiplicitiesAndColors& 
 	}
 	assert(found == height);
 
+	bool used_letters[26] = { false };
+	int used_count = 0;
+
 	for (int i = 0; i < height; i++)
 	{
 		auto seq = problem.sequences[horizontal_sequences[i]];
@@ -360,10 +363,23 @@ void WordRectangle::writeRectangle(const ExactCoverWithMultiplicitiesAndColors& 
 			if (j > 0)
 				stream << ppad;
 			stream << letter;
+
+			if (!used_letters[letter - 'a'])
+			{
+				used_letters[letter - 'a'] = true;
+				used_count++;
+			}
 		}
 		stream << endl;
-
 	}
 
-	
+	stream << used_count << " letters used:";
+	for (int i = 0; i < 26; i++)
+	{
+		if (used_letters[i])
+		{
+			stream << " " << (char) (i + 'a');
+		}
+	}
+	stream << endl;
 }
