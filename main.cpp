@@ -13,7 +13,7 @@ using namespace std;
 #include <cassert>
 
 bool exact_cover_with_multiplicities_and_colors(const ExactCoverWithMultiplicitiesAndColors& problem, 
-						vector<vector<int>>* presults, int max_results);
+						vector<vector<int>>* presults, int max_results, bool non_sharp_preference = false);
 void print_exact_cover_with_multiplicities_and_colors_times();
 
 class SimpleA : public ExactCoverWithMultiplicitiesAndColors
@@ -205,7 +205,9 @@ void world_rectangle_problem()
 	//problem.print();
 
 	vector<vector<int>> results;
-	b = exact_cover_with_multiplicities_and_colors(problem, &results, 100);
+	b = exact_cover_with_multiplicities_and_colors(problem, &results, 100, 
+		true  // We want the non-sharp preference heuristic
+		);
 	if (b)
 	{
 		cout << results.size() << " word rectangle(s) found" << endl;
@@ -238,8 +240,8 @@ int main()
 
 	//test();
 
-	partridge_problem();
-	//world_rectangle_problem();
+	//partridge_problem();
+	world_rectangle_problem();
 
 	assert(_CrtCheckMemory());
 	cout << "Done!\n";

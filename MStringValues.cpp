@@ -712,7 +712,7 @@ static const char *format_sequence(int q)
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 bool exact_cover_with_multiplicities_and_colors(const ExactCoverWithMultiplicitiesAndColors& problem, 
-					vector<vector<int>> *presults, int max_results = 1)
+					vector<vector<int>> *presults, int max_results = 1, bool non_sharp_preference = false)
 {
 	//problem.print();
 	assert(_CrtCheckMemory());
@@ -768,9 +768,12 @@ bool exact_cover_with_multiplicities_and_colors(const ExactCoverWithMultipliciti
 
 				// This implements the non-sharp preference heuristic.
 				// This is needed for the word rectangle problem, but not in general:
-				if (cells[j].len > 1 && headers[j].pName[0] != '#')
+				if (non_sharp_preference)
 				{
-					branch_factor += 10000;
+					if (branch_factor > 1 && headers[j].pName[0] != '#')
+					{
+						branch_factor += 10000;
+					}
 				}
 
 				if (branch_factor < smallest_branch_factor)
