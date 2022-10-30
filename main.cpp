@@ -1,6 +1,7 @@
 
 #include <iostream>
 
+#include "AlgMPointer.h"
 #include "Common.h"
 #include "PartridgePuzzle.h"
 #include "WordRectangle.h"
@@ -42,6 +43,18 @@ public:
 		assert(b);
 		return b;
 	}
+
+	bool testC()
+	{
+		vector<vector<int>> results;
+
+		AlgMPointer alg(*this);
+		
+		bool b = alg.exactCover(&results, 1);
+		assert(b);
+		print_solution(results);
+		return b;
+	}
 };
 
 class SimpleAB : public ExactCoverWithMultiplicitiesAndColors
@@ -74,6 +87,17 @@ public:
 		vector<vector<int>> results;
 		bool b = exact_cover_with_multiplicities_and_colors(*this, &results, 1);
 		assert(b);
+		return b;
+	}
+
+	bool testC()
+	{
+		vector<vector<int>> results;
+
+		AlgMPointer alg(*this);
+		bool b = alg.exactCover(&results, 1);
+		assert(b);
+		print_solution(results);
 		return b;
 	}
 };
@@ -111,6 +135,7 @@ public:
 		vector<vector<int>> results;
 		bool b = exact_cover_with_multiplicities_and_colors(*this, &results, 1);
 		assert(b);
+		print_solution(results);
 		return b;
 	}
 };
@@ -155,6 +180,64 @@ void test()
 		assert(sab.test());
 	}
 }
+
+void testC()
+{
+#define PREVIOUS 1
+#if PREVIOUS
+	 {
+		SimpleA sa;
+		assert(sa.testC());
+	}
+#endif
+
+#if PREVIOUS
+	 {
+		SimpleA sa(2, 3, 2);
+		assert(sa.testC());
+	}
+#endif
+
+#if PREVIOUS
+	{
+		SimpleA sa(2, 3, 3);
+		assert(sa.test());
+	}
+#endif
+#if PREVIOUS
+	{
+
+		class SimpleAB sab(1, 1, 1, 1);
+		assert(sab.test());
+	}
+#endif
+	
+#if PREVIOUS
+	{
+		class SimpleAB sab(2, 3, 1, 1);
+		assert(sab.test());
+	}
+#endif
+	// These are suspect:
+#if PREVIOUS
+	{
+		SimpleA sa(2, 6, 10);
+		assert(sa.test());
+	}
+#endif
+#if PREVIOUS
+	{
+		class SimpleAB sab(2, 3, 2, 3);
+		assert(sab.test());
+	}
+#endif
+#if PREVIOUS
+	{
+		class SimpleABPair sab(3, 6, 3, 3);
+		assert(sab.test());
+	}
+#endif
+}
 ///////////////////////////////////////////////////////////////////////////////
 void partridge_problem()
 {
@@ -192,8 +275,8 @@ void world_rectangle_problem()
 {
 	WordRectangle word_rectangle;
 
-	bool b = word_rectangle.readWords("20k_words.txt");
-	//bool b = word_rectangle.readWords("test_words.txt");	// A smaller, simpler test case.
+	//bool b = word_rectangle.readWords("20k_words.txt");
+	bool b = word_rectangle.readWords("test_words.txt");	// A smaller, simpler test case.
 	assert(b);
 	cout << "Word list read successfully." << endl;
 
@@ -205,9 +288,16 @@ void world_rectangle_problem()
 	//problem.print();
 
 	vector<vector<int>> results;
+
+#if 1
+	AlgMPointer alg(problem);
+	b = alg.exactCover(&results, 100);
+	alg.print();
+#else
 	b = exact_cover_with_multiplicities_and_colors(problem, &results, 100, 
 		true  // We want the non-sharp preference heuristic
 		);
+#endif
 	if (b)
 	{
 		cout << results.size() << " word rectangle(s) found" << endl;
@@ -238,10 +328,10 @@ int main()
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF | _CRTDBG_CHECK_ALWAYS_DF);
 	//_crtBreakAlloc = 0;	// If you need to debug a particular alloc.
 
-	//test();
+	//testC();
 
-	//partridge_problem();
-	world_rectangle_problem();
+	partridge_problem();
+	//world_rectangle_problem();
 
 	assert(_CrtCheckMemory());
 	cout << "Done!\n";

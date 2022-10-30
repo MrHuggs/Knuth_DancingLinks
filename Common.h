@@ -78,7 +78,7 @@ inline bool print_diff(std::string s1, std::string s2)
 	const char* p1 = s1.c_str();
 	const char* p2 = s2.c_str();
 
-	std::string result;
+		std::string result;
 	bool equal = true;
 	while (*p1 && *p2)
 	{
@@ -180,6 +180,24 @@ struct ExactCoverWithMultiplicitiesAndColors
 	void print() const
 	{
 		format(std::cout);
+	}
+
+	void format_solution(std::vector<std::vector<int>> &results, std::ostream& stream) const
+	{
+		stream << results.size() << " solutions found:" << std::endl;
+
+		for (int i = 0; i < results.size(); i++)
+		{
+			stream << "Solution " << i << std::endl;
+			for (int j = 0; j < results[i].size(); j++)
+			{
+				format_sequence(results[i][j], stream);
+			}
+		}
+	}
+	void print_solution(std::vector<std::vector<int>>& results)
+	{
+		format_solution(results, std::cout);
 	}
 };
 
