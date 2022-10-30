@@ -42,7 +42,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
@@ -139,15 +139,19 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="AlgMPointer.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="MStringValues.cpp" />
     <ClCompile Include="PartridgePuzzle.cpp" />
+    <ClCompile Include="util\crc.c" />
     <ClCompile Include="WordRectangle.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="AlgMPointer.h" />
     <ClInclude Include="Common.h" />
     <ClInclude Include="PartridgePuzzle.h" />
     <ClInclude Include="ProblemGenerator.h" />
+    <ClInclude Include="util\crc.h" />
     <ClInclude Include="WordRectangle.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

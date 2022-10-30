@@ -679,28 +679,41 @@ static const char *format_sequence(int q)
 		if (color > 0)
 		{
 			pcolor_name = pproblem->colors[color - 1];
+			nc = (int)strlen(pcolor_name) + 1;
 		}
-		nc = (int)strlen(pcolor_name);
+		else
+			nc = 0;
 
+		size_t tc = n + nc + 2;
 
-		if (curlen + n + nc + 2 > bufsize)
+		if (curlen + tc > bufsize)
 		{
 			assert(false);
 			return "Error: out of buffer space! ";
 		}
+
+#ifndef NDEBUG
+		auto base = buf + curlen;
+#endif
 
 		memcpy(buf + curlen, pitem_name, n);
 		curlen += n;
 
 		if (nc > 0)
 		{
-			buf[curlen++] = ':';
-			memcpy(buf + curlen, pcolor_name, nc);
+			buf[curlen] = ':';
+			memcpy(buf + curlen + 1, pcolor_name, nc - 1);
 			curlen += nc;
 		}
 
 		buf[curlen] = ' ';
 		curlen++;
+
+#ifndef NDEBUG
+		buf[curlen] = 0;
+		size_t nused = strlen(base) + 1;
+		assert(nused == tc);
+#endif
 
 		q++;
 
