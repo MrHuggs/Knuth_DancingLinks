@@ -11,16 +11,16 @@ rate
 uses
 tens
 # second rectangle
-eased
-agile
-sense
-edged
-ease
-aged
-sing
-else
-deed
-
+#eased
+#agile
+#sense
+#edged
+#ease
+#aged
+#sing
+#else
+#deed
+#
 # Special test case that produced dupicate results.
 #lotto
 #onion

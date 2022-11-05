@@ -37,31 +37,32 @@ public:
 	// If this is a primary item, max/min numbers allowed, else -1 for a secondary item:
 	int Min;
 	int Max;
-	// How many sequences used this item:
-	int StartingCount;
+
 
 	bool isPrimary() const { return Max >= 0; }
 
 	// How many times this item has been assigned in the current partial solution:
-	int Current;
+	int UsedCount;
 
-	int remaining() const { return StartingCount - Current; }
+	// How many sequences are available that use this item:
+	int AvailableSequences;
+
 
 	// The branching factor is how many choices we have for the next sequence containing
 	// this item.
 	
 	int branchingFactor() const
 	{
-		assert(Current <= Max);
-		int needed = Min - Current;
-		int branching_factor = remaining() - needed + 1;
+		assert(UsedCount <= Max);
+		int needed = Min - UsedCount;
+		int branching_factor = AvailableSequences - needed + 1;
 
 		return branching_factor;
 	}
 
 	int slack() const
 	{
-		return Max - Current;
+		return Max - UsedCount;
 	}
 
 	// For a secondary item, the currently active color.
@@ -79,7 +80,7 @@ public:
 
 	ItemHeader* pTop;
 
-	const char* pColor; // or nullptr if not colored.
+	const char* pColor; // Will match one of the pointers in the input problem, or nullptr if not colored.
 
 	// Next and previous cells in this sequence. Forms a circularly linked list.
 	MCell* pLeft;
@@ -194,6 +195,7 @@ class AlgMPointer
 	LevelState* pLevelState;
 
 	ItemHeader* getItem(const char* pc, size_t len);
+	const char* getColor(const char* pc);
 
 	// Unlink/relink a single cell in the corresponding list of items:
 	void unlinkCellVertically(MCell* pcell);
@@ -202,6 +204,7 @@ class AlgMPointer
 	void unlinkItem(ItemHeader* pitem);
 	void cover(ItemHeader* pitem);		// cover is called when an item is being chosen.
 	void sequenceUsed(MCell* pcell);   
+	void setcolor(MCell* pcell);
 	void deactivateOrCover(ItemHeader* pitem);
 
 
@@ -213,10 +216,11 @@ class AlgMPointer
 	void relinkItem(ItemHeader* pitem);
 	void uncover(ItemHeader* pitem);	
 	void sequenceReleased(MCell* pcell);
+	void clearColor(MCell* pcell);
 	void reactivateOrUncover(ItemHeader* pitem);
 	void recordSolution(std::vector<std::vector<int>>* presults);
 
-	void checkValid() const;
+	void assertValid() const;
 	unsigned long checksum();
 public:
 	AlgMPointer(const ExactCoverWithMultiplicitiesAndColors& problem);

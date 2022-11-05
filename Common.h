@@ -6,13 +6,15 @@
 
 
 #include <cassert>
+#include <functional>
 #include <string>
 #include <iostream>
 #include <vector>
+#include <map>
 #include <unordered_set>
 
 // Want conditional output that completely compiles away when not needed.
-//#define ENABLE_TRACE
+#define ENABLE_TRACE
 #ifdef ENABLE_TRACE
 #include <stdio.h>
 #define TRACE printf
@@ -166,6 +168,72 @@ struct ExactCoverWithMultiplicitiesAndColors
 			format_sequence(i, stream);
 		}
 
+	}
+
+	struct CmpSame
+	{
+		bool operator()(const char* p1, const char* p2) const
+		{
+			return strcmp(p1, p2) < 0;
+		}
+	};
+	
+	void assertValid() const
+	{
+
+		std::map<const char*, int, CmpSame> primaries_set;		// All we really need is an unordered set...
+		std::map<const char*, int, CmpSame> secondaries_set;	
+		std::map<const char*, int, CmpSame> colors_set;
+
+		// Check for duplicates and improper reuse:
+		size_t max_len = 0;
+		for (int i = 0; i < primary_options.size(); i++)
+		{
+			const PrimaryOption &o = primary_options[i];
+			assert(primaries_set.find(o.pValue) == primaries_set.end());
+			assert(o.u <= o.v);
+			primaries_set[o.pValue] = 0;
+			max_len = std::max(max_len, strlen(o.pValue));
+		}
+
+		for (auto pc : secondary_options)
+		{
+			assert(primaries_set.find(pc) == primaries_set.end());
+			assert(secondaries_set.find(pc) == secondaries_set.end());
+			secondaries_set[pc] = 0;
+			max_len = std::max(max_len, strlen(pc));
+		}
+
+		for (auto pc : colors)
+		{
+			assert(colors_set.find(pc) == colors_set.end());
+			colors_set[pc] = 0;
+		}
+
+		char* buf = (char*)_alloca(max_len + 1);
+		for (int i = 0; i < sequences.size(); i++)
+		{
+			const std::vector<const char*> &seq = sequences[i];
+
+			for (auto pc : seq)
+			{
+				const char* sep = strchr(pc, ':');
+				if (sep)
+				{
+					int nc = (int)(sep - pc);
+					assert(nc <= max_len);
+					memcpy(buf, pc, nc);
+					buf[nc] = 0;
+
+					assert(secondaries_set.find(pc) != secondaries_set.end());
+					assert(colors_set.find(sep + 1) != colors_set.end());
+				}
+				else
+				{
+					assert(primaries_set.find(pc) != primaries_set.end());
+				}
+			}
+		}
 	}
 
 	void format_sequence(int idx_seq, std::ostream& stream) const

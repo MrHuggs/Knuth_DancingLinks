@@ -308,7 +308,7 @@ static void destroy_cells()
 }
 ///////////////////////////////////////////////////////////////////////////////
 // hide/cover/uncover/unhide functions:
-static void hide_p(int p)
+static void hide(int p)
 {
 	int q = p + 1;
 	while (q != p)
@@ -336,13 +336,13 @@ static void hide_p(int p)
 }
 
 
-static void cover_p(int i)
+static void cover(int i)
 {
 	int p = cells[i].dlink;
 
 	while (p != i)
 	{
-		hide_p(p);
+		hide(p);
 		p = cells[p].dlink;
 	}
 
@@ -353,7 +353,7 @@ static void cover_p(int i)
 	headers[r].llink = l;
 }
 
-static void unhide_p(int p)
+static void unhide(int p)
 {
 	int q = p - 1;
 
@@ -391,7 +391,7 @@ static void uncover_p(int i)
 	int p = cells[i].ulink;
 	while (p != i)
 	{
-		unhide_p(p);
+		unhide(p);
 		p = cells[p].ulink;
 	}
 }
@@ -412,7 +412,7 @@ void purify(int p)
 		}
 		else
 		{
-			hide_p(q);
+			hide(q);
 		}
 
 		q = cells[q].dlink;
@@ -424,7 +424,7 @@ void commit(int p, int j)
 	int c = cells[p].color;
 	if (c == 0)
 	{
-		cover_p(j);
+		cover(j);
 	}
 	else if (c > 0)
 	{
@@ -446,7 +446,7 @@ void unpurify(int p)
 		}
 		else
 		{
-			unhide_p(q);
+			unhide(q);
 		}
 
 		q = cells[q].ulink;
@@ -468,7 +468,7 @@ void uncommit(int p, int j)
 
 void tweak(int x, int p)
 {
-	hide_p(x);					// Hide sequence x, and unlink the sequences before x from 
+	hide(x);					// Hide sequence x, and unlink the sequences before x from 
 	int d = cells[x].dlink;     // the list of sequences for item p.
 	cells[p].dlink = d;
 
@@ -476,7 +476,7 @@ void tweak(int x, int p)
 	cells[p].len--;
 }
 
-void tweak_p(int x, int p)
+void tweak_p(int x, int p)		// tweak'
 {
 	int d = cells[x].dlink;
 	cells[p].dlink = d;
@@ -500,7 +500,7 @@ void untweak(int l)
 	{
 		cells[x].ulink = y;
 		k++;
-		unhide_p(x);
+		unhide(x);
 		y = x;
 		x = cells[x].dlink;
 	}
@@ -510,7 +510,7 @@ void untweak(int l)
 
 }
 
-void untweak_p(int l)
+void untweak_p(int l) // untweak'
 {
 	int a = ft[l];
 	int p = (a <= nprimary_items + nsecondary_items) ? a : cells[a].top;
@@ -728,6 +728,7 @@ bool exact_cover_with_multiplicities_and_colors(const ExactCoverWithMultipliciti
 					vector<vector<int>> *presults, int max_results = 1, bool non_sharp_preference = false)
 {
 	//problem.print();
+	problem.assertValid();
 	assert(_CrtCheckMemory());
 	AlgXStates state = ax_Initialize;
 
@@ -814,7 +815,7 @@ bool exact_cover_with_multiplicities_and_colors(const ExactCoverWithMultipliciti
 
 			if (headers[i].bound == 0)
 			{
-				cover_p(i);
+				cover(i);
 			}
 
 			if (headers[i].bound != 0 || headers[i].slack != 0)
@@ -888,7 +889,7 @@ bool exact_cover_with_multiplicities_and_colors(const ExactCoverWithMultipliciti
 							headers[j].bound--;
 							if (headers[j].bound == 0)
 							{
-								cover_p(j);
+								cover(j);
 							}
 						}
 						else
