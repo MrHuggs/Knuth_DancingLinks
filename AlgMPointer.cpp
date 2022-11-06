@@ -17,6 +17,37 @@ using namespace std;
 // AlgMChecksum
 //
 ///////////////////////////////////////////////////////////////////////////////
+#ifdef SMALL_CHECKSUM
+#include "util/crc.h"
+
+void AlgMChecksum::init(const AlgMPointer& alg)
+{
+	static bool binit = false;
+	if (!binit)
+	{
+		binit = true;
+		crcInit();
+	}
+}
+///////////////////////////////////////////////////////////////////////////////
+void AlgMChecksum::checksum(const AlgMPointer& alg)
+{
+
+	crc parts[2];
+	parts[0] = crcFast((unsigned char*)alg.pHeaders, (int)alg.TotalItems * sizeof(ItemHeader));
+	parts[1] = crcFast((unsigned char*)alg.pCells, (int)alg.TotalCells * sizeof(MCell));
+
+	EntryCheckSum = crcFast((unsigned char*)parts, sizeof(parts));
+
+}
+///////////////////////////////////////////////////////////////////////////////
+bool AlgMChecksum::compare(const AlgMChecksum& other, const AlgMPointer& alg) const
+{
+	return EntryCheckSum == other.EntryCheckSum;
+}
+///////////////////////////////////////////////////////////////////////////////
+#else
+///////////////////////////////////////////////////////////////////////////////
 AlgMChecksum::AlgMChecksum()
 {
 	memset(this, 0, sizeof(*this));
@@ -81,6 +112,7 @@ bool AlgMChecksum::compare(const AlgMChecksum& other, const AlgMPointer& alg) co
 	}
 	return same;
 }
+#endif
 ///////////////////////////////////////////////////////////////////////////////
 //
 // AlgMPointer
@@ -184,27 +216,6 @@ void AlgMPointer::testChecksum()
 
 	assert(pChecksums[CurLevel].compare(tempChecksum, *this));
 }
-///////////////////////////////////////////////////////////////////////////////
-#if 0
-#include "util/crc.h"
-unsigned long AlgMPointer::checksum()
-{
-	static bool binit = false;
-	if (!binit)
-	{
-		binit = true;
-		crcInit();
-	}
-
-	crc parts[2];
-	parts[0] = crcFast((unsigned char *) pHeaders, (int) TotalItems * sizeof(ItemHeader));
-	parts[1] = crcFast((unsigned char*)pCells, (int) TotalCells * sizeof(MCell));
-
-	crc results = crcFast((unsigned char*)parts, sizeof(parts));
-
-	return results;
-}
-#endif
 ///////////////////////////////////////////////////////////////////////////////
 AlgMPointer::AlgMPointer(const ExactCoverWithMultiplicitiesAndColors& problem) : Problem(problem)
 {

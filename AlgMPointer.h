@@ -155,11 +155,12 @@ struct LevelState
 ///////////////////////////////////////////////////////////////////////////////
 class AlgMChecksum
 {
+//#define SMALL_CHECKSUM
 #ifdef SMALL_CHECKSUM
 	unsigned int EntryCheckSum;
 public:
 	void checksum(const AlgMPointer& alg);
-	void init(const AlgMPointer& alg) {}
+	void init(const AlgMPointer& alg);
 	bool compare(const AlgMChecksum& other, const AlgMPointer& alg) const;
 #else
 	ItemHeader* pHeaders;
