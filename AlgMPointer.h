@@ -13,11 +13,12 @@
 class ItemHeader;
 class XCellHeader;
 class MCell;
+class AlgMPointer;
 
 struct ExactCoverWithMultiplicitiesAndColors;
-
 enum AlgXStates;
 
+///////////////////////////////////////////////////////////////////////////////
 class ItemHeader
 {
 public:
@@ -68,8 +69,7 @@ public:
 	// For a secondary item, the currently active color.
 	const char* pColor;	// or null if no color has been assigned.
 };
-
-
+///////////////////////////////////////////////////////////////////////////////
 class MCell
 {
 public:
@@ -77,6 +77,10 @@ public:
 	{
 		memset(this, 0, sizeof(*this));
 	}
+
+	// Previous and next sequences containing this item. Null terminated.
+	MCell* pUp;
+	MCell* pDown;
 
 	ItemHeader* pTop;
 
@@ -86,9 +90,6 @@ public:
 	MCell* pLeft;
 	MCell* pRight;
 
-	// Previous and next sequences containing this item. Null terminated.
-	MCell* pUp;		
-	MCell* pDown;
 
 	void format(std::ostream& stream) const
 	{
@@ -129,10 +130,58 @@ public:
 	}
 
 };
+///////////////////////////////////////////////////////////////////////////////
+enum AgActions
+{
+	ag_Init,
+	ag_EnterLevel,
+	ag_TryX,
+	ag_Tweak,
+	ag_NextX,
+	ag_TweakNext,
+	ag_Restore,
+	ag_LeaveLevel,
+	ag_Done,
+};
+///////////////////////////////////////////////////////////////////////////////
+struct LevelState
+{
+	AgActions Action;
+	ItemHeader* pItem;
+	MCell* pCurCell;
+	MCell* pStartingCell;
+	int TryCellCount;
+};
+///////////////////////////////////////////////////////////////////////////////
+class AlgMChecksum
+{
+#ifdef SMALL_CHECKSUM
+	unsigned int EntryCheckSum;
+public:
+	void checksum(const AlgMPointer& alg);
+	void init(const AlgMPointer& alg) {}
+	bool compare(const AlgMChecksum& other, const AlgMPointer& alg) const;
+#else
+	ItemHeader* pHeaders;
+	MCell* pCells;
+public:
+	AlgMChecksum();
+	~AlgMChecksum();
+
+	void init(const AlgMPointer& alg);
+
+	void checksum(const AlgMPointer &alg);
+
+	bool compare(const AlgMChecksum& other, const AlgMPointer& alg) const;
+#endif
+
+};
 
 
 class AlgMPointer
 {
+	friend class AlgMChecksum;
+
 	ItemHeader* pFirstActiveItem;
 	
 	size_t TotalItems;
@@ -146,19 +195,6 @@ class AlgMPointer
 	std::map<MCell*, int> SequenceMap;
 
 	const ExactCoverWithMultiplicitiesAndColors& Problem;
-
-	enum AgActions
-	{
-		ag_Init,
-		ag_EnterLevel,
-		ag_TryX,
-		ag_Tweak,
-		ag_NextX,
-		ag_TweakNext,
-		ag_Restore,
-		ag_LeaveLevel,
-		ag_Done,
-	};
 
 	static inline const char* ActionName(AgActions action)
 	{
@@ -179,20 +215,13 @@ class AlgMPointer
 	}
 
 	int CurLevel;
-	struct LevelState
-	{
-		AgActions Action;
-		ItemHeader* pItem;
-		MCell*	pCurCell;
-		MCell* pStartingCell;
-		int TryCellCount;
+
+	LevelState* pLevelState;
 
 #ifndef NDEBUG
-		unsigned int EntryCheckSum;
+	AlgMChecksum* pChecksums;
+	AlgMChecksum tempChecksum;
 #endif
-
-	};
-	LevelState* pLevelState;
 
 	ItemHeader* getItem(const char* pc, size_t len);
 	const char* getColor(const char* pc);
@@ -221,20 +250,23 @@ class AlgMPointer
 	void recordSolution(std::vector<std::vector<int>>* presults);
 
 	void assertValid() const;
-	unsigned long checksum();
+	void testChecksum();
 public:
 	AlgMPointer(const ExactCoverWithMultiplicitiesAndColors& problem);
 	~AlgMPointer();
 
-	void format(std::ostream& stream) const;
-	void print();
+	void format(std::ostream& stream = std::cout) const;
 
 	bool testUncoverCover();
 
 	bool exactCover(std::vector<std::vector<int>>* presults, int max_results = 1);
 
+	size_t Solutions;
 	long setupTime;
 	long runTime;
 	long long loopCount;
+	long long levelCount;
+
+	void showStats(std::ostream& stream = std::cout) const;
 };
 

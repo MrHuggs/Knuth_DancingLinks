@@ -13,11 +13,45 @@ using namespace std;
 #include <crtdbg.h>
 #include <cassert>
 
+#define USE_POINTER_VERSION
+
+#ifndef USE_POINTER_VERSION
+
 bool exact_cover_with_multiplicities_and_colors(const ExactCoverWithMultiplicitiesAndColors& problem, 
 						vector<vector<int>>* presults, int max_results, bool non_sharp_preference = false);
-void print_exact_cover_with_multiplicities_and_colors_times();
+void print_exact_cover_with_multiplicities_and_colors_stats();
+#endif
 
-class SimpleA : public ExactCoverWithMultiplicitiesAndColors
+class SimpleTester : public ExactCoverWithMultiplicitiesAndColors
+{
+public:
+#ifdef USE_POINTER_VERSION
+	bool test()
+	{
+		vector<vector<int>> results;
+
+		AlgMPointer alg(*this);
+
+		bool b = alg.exactCover(&results, 20);
+		assert(b);
+		print_solution(results);
+		alg.showStats();
+		return b;
+	}
+#else
+	bool test()
+	{
+		vector<vector<int>> results;
+		bool b = exact_cover_with_multiplicities_and_colors(*this, &results, 20);
+		assert(b);
+		print_solution(results);
+		print_exact_cover_with_multiplicities_and_colors_stats();
+		return b;
+	}
+#endif
+};
+
+class SimpleA : public SimpleTester
 {
 
 public:
@@ -36,28 +70,9 @@ public:
 			sequences[i].push_back("A");
 		}
 	}
-	bool test()
-	{
-		vector<vector<int>> results;
-		bool b = exact_cover_with_multiplicities_and_colors(*this, &results, 1);
-		assert(b);
-		return b;
-	}
-
-	bool testC()
-	{
-		vector<vector<int>> results;
-
-		AlgMPointer alg(*this);
-		
-		bool b = alg.exactCover(&results, 1);
-		assert(b);
-		print_solution(results);
-		return b;
-	}
 };
 
-class SimpleAB : public ExactCoverWithMultiplicitiesAndColors
+class SimpleAB : public SimpleTester
 {
 
 public:
@@ -82,28 +97,10 @@ public:
 			sequences[i].push_back("B");
 		}
 	}
-	bool test()
-	{
-		vector<vector<int>> results;
-		bool b = exact_cover_with_multiplicities_and_colors(*this, &results, 1);
-		assert(b);
-		return b;
-	}
 
-	bool testC()
-	{
-		vector<vector<int>> results;
-
-		AlgMPointer alg(*this);
-
-		bool b = alg.exactCover(&results, 1);
-		assert(b);
-		print_solution(results);
-		return b;
-	}
 };
 
-class SimpleABPair : public ExactCoverWithMultiplicitiesAndColors
+class SimpleABPair : public SimpleTester
 {
 
 public:
@@ -131,30 +128,11 @@ public:
 			sequences[idx++].push_back("A");
 		}
 	}
-	bool test()
-	{
-		vector<vector<int>> results;
-		bool b = exact_cover_with_multiplicities_and_colors(*this, &results, 1);
-		assert(b);
-		print_solution(results);
-		return b;
-	}
 
-	bool testC()
-	{
-		vector<vector<int>> results;
-
-		AlgMPointer alg(*this);
-
-		bool b = alg.exactCover(&results, 1);
-		assert(b);
-		print_solution(results);
-		return b;
-	}
 };
 
 ///////////////////////////////////////////////////////////////////////////////
-class SimpleColoring : public ExactCoverWithMultiplicitiesAndColors
+class SimpleColoring : public SimpleTester
 {
 	// Example 49 from Knuth
 public:
@@ -205,102 +183,60 @@ public:
 };
 ///////////////////////////////////////////////////////////////////////////////
 
-
 void test()
 {
-	{
-		SimpleA sa;
-		assert(sa.test());
-	}
-	{
-		SimpleA sa(2, 3, 2);
-		assert(sa.test());
-	}
-	{
-		SimpleA sa(2, 3, 3);
-		assert(sa.test());
-	}
-	{
-
-		class SimpleAB sab(1, 1, 1, 1);
-		assert(sab.test());
-	}
-	{
-
-		class SimpleAB sab(2, 3, 1, 1);
-		assert(sab.test());
-	}
-	// These are suspect:
-	{
-		SimpleA sa(2, 6, 10);
-		assert(sa.test());
-	}
-	{
-
-		class SimpleAB sab(2, 3, 2, 3);
-		assert(sab.test());
-	}
-	{
-
-		class SimpleABPair sab(3, 6, 3, 3);
-		assert(sab.test());
-	}
-}
-
-void testC()
-{
 #define PREVIOUS 1
-#if PREVIOUS_X
+#if PREVIOUS
 	 {
 		SimpleA sa;
-		assert(sa.testC());
+		assert(sa.test());
 	}
 #endif
 
 #if PREVIOUS
 	 {
 		SimpleA sa(2, 3, 2);
-		assert(sa.testC());
+		assert(sa.test());
 	}
 #endif
 
 #if PREVIOUS
 	{
 		SimpleA sa(2, 3, 3);
-		assert(sa.testC());
+		assert(sa.test());
 	}
 #endif
 #if PREVIOUS
 	{
 
 		class SimpleAB sab(1, 1, 1, 1);
-		assert(sab.testC());
+		assert(sab.test());
 	}
 #endif
 	
 #if PREVIOUS
 	{
 		class SimpleAB sab(2, 3, 1, 1);
-		assert(sab.testC());
+		assert(sab.test());
 	}
 #endif
 	// These are suspect:
 #if PREVIOUS
 	{
 		SimpleA sa(2, 6, 10);
-		assert(sa.testC());
+		assert(sa.test());
 	}
 #endif
 #if PREVIOUS
 	{
 		class SimpleAB sab(2, 3, 2, 3);
-		assert(sab.testC());
+		assert(sab.test());
 	}
 #endif
 #if PREVIOUS
 	{
 		class SimpleABPair sab(3, 6, 3, 3);
-		assert(sab.testC());
+		assert(sab.test());
 	}
 #endif
 }
@@ -318,12 +254,13 @@ void partridge_problem()
 	
 	// There are over 1000 solution, which would take a long time.
 	bool b;
-#if 1
+#ifdef USE_POINTER_VERSION
 	AlgMPointer alg(problem);
 	b = alg.exactCover(&results, 8);
-	alg.print();
+	alg.showStats();
 #else
-	bool b = exact_cover_with_multiplicities_and_colors(problem, &results, 8);
+	b = exact_cover_with_multiplicities_and_colors(problem, &results, 8);
+	print_exact_cover_with_multiplicities_and_colors_stats();
 #endif
 
 	if (b)
@@ -344,7 +281,6 @@ void partridge_problem()
 	{
 		cout << "Puzzle cannot be solved." << endl;
 	}
-	print_exact_cover_with_multiplicities_and_colors_times();
 }
 ///////////////////////////////////////////////////////////////////////////////
 void world_rectangle_problem()
@@ -365,14 +301,15 @@ void world_rectangle_problem()
 
 	vector<vector<int>> results;
 
-#if 1
+#ifdef USE_POINTER_VERSION
 	AlgMPointer alg(problem);
 	b = alg.exactCover(&results, 100);
-	alg.print();
+	alg.format();
 #else
 	b = exact_cover_with_multiplicities_and_colors(problem, &results, 100, 
 		true  // We want the non-sharp preference heuristic
 		);
+	print_exact_cover_with_multiplicities_and_colors_stats();
 #endif
 	if (b)
 	{
@@ -395,7 +332,6 @@ void world_rectangle_problem()
 	{
 		cout << "Words cannot be placed." << endl;
 	}
-	print_exact_cover_with_multiplicities_and_colors_times();
 
 }
 ///////////////////////////////////////////////////////////////////////////////
@@ -404,9 +340,9 @@ int main()
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF | _CRTDBG_CHECK_ALWAYS_DF);
 	//_crtBreakAlloc = 0;	// If you need to debug a particular alloc.
 
-	testC();
+	//test();
 
-	//partridge_problem();
+	partridge_problem();
 	//world_rectangle_problem();
 
 	assert(_CrtCheckMemory());

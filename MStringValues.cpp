@@ -74,7 +74,9 @@ static int* ft;
 static chrono::steady_clock::time_point start_time;
 static chrono::steady_clock::time_point setup_complete;
 static chrono::steady_clock::time_point run_complete;
+static size_t solution_count;
 static long long loop_count;
+static long long level_count;
 
 static void get_counts()
 {
@@ -738,7 +740,9 @@ bool exact_cover_with_multiplicities_and_colors(const ExactCoverWithMultipliciti
 	get_counts();
 	init_cells();
 	setup_complete = std::chrono::high_resolution_clock::now();
-	loop_count = 0;
+
+	solution_count = 0;
+	level_count = loop_count = 0;
 
 	//print();		// If you want to see Table 1.
 	int i, p, l = -1;
@@ -760,6 +764,7 @@ bool exact_cover_with_multiplicities_and_colors(const ExactCoverWithMultipliciti
 			break;
 
 		case ax_EnterLevel:
+			level_count++;
 			if (headers[0].rlink == 0)
 			{
 				state = ax_RecordSolution;
@@ -1030,18 +1035,23 @@ bool exact_cover_with_multiplicities_and_colors(const ExactCoverWithMultipliciti
 			delete[] ft;
 			delete[] x;
 
-			return presults->size() != 0;
+			solution_count = presults->size();
+			return solution_count != 0;
 		}
 	}
 }
 
-void print_exact_cover_with_multiplicities_and_colors_times()
+void print_exact_cover_with_multiplicities_and_colors_stats()
 {
 	auto setup_dt = std::chrono::duration_cast<std::chrono::microseconds>(setup_complete - start_time);
 	auto run_dt = std::chrono::duration_cast<std::chrono::microseconds>(run_complete - setup_complete);
 
-	cout << "Exact cover with multiplicities and colors solution took " << setup_dt.count() << " microseconds for setup and " <<
-		run_dt.count() << " microseconds to run.\n";
+	cout << "Exact cover with multiplicities and colors found " << solution_count << " solutions." << endl;
+
+	cout << "\tTime used (microseconds): " << setup_dt.count() << " for setup and " <<
+		run_dt.count() << " to run." << endl;
+
+	cout << "\tLoop ran " << loop_count << " times with " << level_count << " level transitions." << endl;
 }
 
 

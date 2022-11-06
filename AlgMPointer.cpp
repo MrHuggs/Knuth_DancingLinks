@@ -12,15 +12,89 @@
 #include "AlgMPointer.h"
 
 using namespace std;
-
-
 ///////////////////////////////////////////////////////////////////////////////
+//
+// AlgMChecksum
+//
+///////////////////////////////////////////////////////////////////////////////
+AlgMChecksum::AlgMChecksum()
+{
+	memset(this, 0, sizeof(*this));
+}
+///////////////////////////////////////////////////////////////////////////////
+AlgMChecksum::~AlgMChecksum()
+{
+	delete[] pHeaders;
+	delete[] pCells;
+}
+///////////////////////////////////////////////////////////////////////////////
+void AlgMChecksum::init(const AlgMPointer& alg)
+{
+	pHeaders = new ItemHeader[alg.TotalItems];
+	pCells = new MCell[alg.TotalCells];
+}
+///////////////////////////////////////////////////////////////////////////////
+void AlgMChecksum::checksum(const AlgMPointer &alg)
+{
+	memcpy(pHeaders, alg.pHeaders, alg.TotalItems * sizeof(ItemHeader));
+	memcpy(pCells, alg.pCells, alg.TotalCells * sizeof(MCell));
+	
+}
+///////////////////////////////////////////////////////////////////////////////
+template<class T>
+static bool check_and_report (int idx, const char *pname, const T & t1, const T& t2)
+{
+	if (t1 == t2)
+		return true;
 
+	cout << "index " << idx << " " << pname << " differs." << endl;
+	return false;
+}
+
+bool AlgMChecksum::compare(const AlgMChecksum& other, const AlgMPointer& alg) const
+{
+	bool same = true;
+	for (int i = 0; i < alg.TotalItems; i++)
+	{
+
+#define CHECK_HEADER(field) same = same && check_and_report(i, #field, pHeaders[i].field, other.pHeaders[i].field);
+			CHECK_HEADER(pName)
+			CHECK_HEADER(pPrevActive)
+			CHECK_HEADER(pNextActive)
+			CHECK_HEADER(pTopCell)
+			CHECK_HEADER(Min)
+			CHECK_HEADER(Max)
+			CHECK_HEADER(UsedCount)
+			CHECK_HEADER(AvailableSequences)
+			CHECK_HEADER(pColor)
+	}
+
+	for (int i = 0; i < alg.TotalCells; i++)
+	{
+#define CHECK_CELL(field) same = same && check_and_report(i, #field, pCells[i].field, other.pCells[i].field);
+		CHECK_CELL(pTop)
+			CHECK_CELL(pColor)
+			CHECK_CELL(pLeft)
+			CHECK_CELL(pRight)
+			CHECK_CELL(pUp)
+			CHECK_CELL(pDown)
+	}
+	return same;
+}
+///////////////////////////////////////////////////////////////////////////////
+//
+// AlgMPointer
+//
+///////////////////////////////////////////////////////////////////////////////
 AlgMPointer::~AlgMPointer()
 {
 	delete[] pHeaders;
 	delete[] pCells;
 	delete[] pLevelState;
+
+#ifndef NDEBUG
+	delete[] pChecksums;
+#endif
 }
 ///////////////////////////////////////////////////////////////////////////////
 ItemHeader* AlgMPointer::getItem(const char* pc, size_t len)
@@ -101,6 +175,17 @@ void AlgMPointer::assertValid() const
 	}
 }
 ///////////////////////////////////////////////////////////////////////////////
+void AlgMPointer::testChecksum()
+{
+#ifndef NDEBUG
+	tempChecksum.checksum(*this);
+#endif
+
+
+	assert(pChecksums[CurLevel].compare(tempChecksum, *this));
+}
+///////////////////////////////////////////////////////////////////////////////
+#if 0
 #include "util/crc.h"
 unsigned long AlgMPointer::checksum()
 {
@@ -119,6 +204,7 @@ unsigned long AlgMPointer::checksum()
 
 	return results;
 }
+#endif
 ///////////////////////////////////////////////////////////////////////////////
 AlgMPointer::AlgMPointer(const ExactCoverWithMultiplicitiesAndColors& problem) : Problem(problem)
 {
@@ -246,6 +332,14 @@ AlgMPointer::AlgMPointer(const ExactCoverWithMultiplicitiesAndColors& problem) :
 	CurLevel = 0;
 	// Longest possible solution is max items, and we could go 1 level deeper:
 	pLevelState = new LevelState[MaxItems + 1];
+
+#ifndef NDEBUG
+	pChecksums = new AlgMChecksum[MaxItems + 1];
+	for (int i = 0; i < MaxItems + 1; i++)
+		pChecksums[i].init(*this);
+
+	tempChecksum.init(*this);
+#endif
 
 	auto end_time = std::chrono::high_resolution_clock::now();
 	setupTime =  (long) std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count();
@@ -421,12 +515,17 @@ void AlgMPointer::untweak_all()
 		unhide(pcell);
 		pitem->AvailableSequences++;
 
+		if (pcell->pDown)
+		{
+			pcell->pDown->pUp = pcell;
+		}
+
 		if (pcell == pLevelState[CurLevel].pCurCell)
 		{
 			break;
 		}
+
 		pcell = pcell->pDown;
-		assert(pcell);
 	}
 
 	assertValid();
@@ -668,12 +767,6 @@ void AlgMPointer::format(ostream& stream) const
 	stream << separator;
 }
 ///////////////////////////////////////////////////////////////////////////////
-void AlgMPointer::print()
-{
-	format(cout);
-}
-
-///////////////////////////////////////////////////////////////////////////////
 bool AlgMPointer::exactCover(std::vector<std::vector<int>>* presults, int max_results)
 {
 	assert(max_results >= 1);
@@ -687,22 +780,23 @@ bool AlgMPointer::exactCover(std::vector<std::vector<int>>* presults, int max_re
 	pLevelState[0].Action = ag_Init;
 
 
-	loopCount = 0;
-	//print();
+	Solutions = 0;
+	loopCount = levelCount = 0;
+	if (TotalItems < 50)
+		format();
 
 	for (;;)
 	{
 		loopCount++;
 		static int targ_loop = -1;
 		if (targ_loop == loopCount)
-			print();
+			format();
 
 		assertValid();
 		assert(_CrtCheckMemory());
 
 		LevelState& state = pLevelState[CurLevel];
 		TRACE("%lli:%i - %s\n", loopCount, CurLevel, ActionName(state.Action));
-		print();
 
 		switch (state.Action)
 		{
@@ -714,11 +808,12 @@ bool AlgMPointer::exactCover(std::vector<std::vector<int>>* presults, int max_re
 			}
 			case ag_EnterLevel:
 			{
+				levelCount++;
 				if (pFirstActiveItem == nullptr)
 				{
 					recordSolution(presults);
 
-					if (presults->size() <= max_results)
+					if (presults->size() < max_results)
 					{
 						// We should continue searching:
 						state.Action = ag_LeaveLevel;
@@ -730,7 +825,7 @@ bool AlgMPointer::exactCover(std::vector<std::vector<int>>* presults, int max_re
 					continue;
 				}
 #ifndef NDEBUG
-				state.EntryCheckSum = checksum();
+				pChecksums[CurLevel].checksum(*this);
 #endif
 
 				int smallest_branch_factor = std::numeric_limits<int>::max();
@@ -837,9 +932,8 @@ bool AlgMPointer::exactCover(std::vector<std::vector<int>>* presults, int max_re
 				reactivateOrUncover(state.pItem);
 
 #ifndef NDEBUG
-				auto cur_checksum = checksum();
-				//assert(state.EntryCheckSum == checksum());
 				assertValid();
+				testChecksum();
 #endif
 
 				state.Action = ag_LeaveLevel;
@@ -874,7 +968,8 @@ bool AlgMPointer::exactCover(std::vector<std::vector<int>>* presults, int max_re
 				runTime = (long)std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count();
 
 				assert(_CrtCheckMemory());
-				return presults->size() != 0;
+				Solutions = presults->size();
+				return Solutions != 0;
 			}
 		}
 	}
@@ -905,6 +1000,16 @@ void AlgMPointer::recordSolution(std::vector<std::vector<int>>* presults)
 
 	}
 	presults->emplace_back(result);
+}
+///////////////////////////////////////////////////////////////////////////////
+void AlgMPointer::showStats(std::ostream& stream) const
+{
+	cout << "Pointer based Exact cover with multiplicities and colors found " << Solutions << " solutions." << endl;
+
+	cout << "\tTime used (microseconds): " << setupTime << " for setup and " <<
+		runTime << " to run." << endl;
+
+	cout << "\tLoop ran " << loopCount << " times with " << levelCount << " level transitions." << endl;
 }
 ///////////////////////////////////////////////////////////////////////////////
 bool AlgMPointer::testUncoverCover()
@@ -942,7 +1047,4 @@ bool AlgMPointer::testUncoverCover()
 	return pass;
 }
 
-/*
-	cout << "Large problem with pointers solution took: " << alg.setupTime << " microseconds for setup and " <<
-		alg.runTime << " microseconds to run and " << alg.loopCount	<< " iterations.\n";
-		*/
+

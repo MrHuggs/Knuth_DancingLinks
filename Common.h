@@ -14,7 +14,10 @@
 #include <unordered_set>
 
 // Want conditional output that completely compiles away when not needed.
+#ifndef NDEBUG
 #define ENABLE_TRACE
+#endif
+
 #ifdef ENABLE_TRACE
 #include <stdio.h>
 #define TRACE printf
@@ -169,14 +172,6 @@ struct ExactCoverWithMultiplicitiesAndColors
 		}
 
 	}
-
-	struct CmpSame
-	{
-		bool operator()(const char* p1, const char* p2) const
-		{
-			return strcmp(p1, p2) < 0;
-		}
-	};
 	
 	void assertValid() const
 	{
