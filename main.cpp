@@ -13,42 +13,46 @@ using namespace std;
 #include <crtdbg.h>
 #include <cassert>
 
-#define USE_POINTER_VERSION
 
-#ifndef USE_POINTER_VERSION
+static bool UsePointerVersion = true;
+static bool NonSharpPreference = false;
+#ifdef NDEBUG
+static bool SmallWordList = false;
+#else
+static bool SmallWordList = true;
+#endif
 
+// Functions from MStringValues.cpp:
 bool exact_cover_with_multiplicities_and_colors(const ExactCoverWithMultiplicitiesAndColors& problem, 
 						vector<vector<int>>* presults, int max_results, bool non_sharp_preference = false);
 void print_exact_cover_with_multiplicities_and_colors_stats();
-#endif
 
 class SimpleTester : public ExactCoverWithMultiplicitiesAndColors
 {
 public:
-#ifdef USE_POINTER_VERSION
 	bool test()
 	{
 		vector<vector<int>> results;
 
-		AlgMPointer alg(*this);
+		if (UsePointerVersion)
+		{
+			AlgMPointer alg(*this);
 
-		bool b = alg.exactCover(&results, 20);
-		assert(b);
-		print_solution(results);
-		alg.showStats();
-		return b;
+			bool b = alg.exactCover(&results, 20);
+			assert(b);
+			print_solution(results);
+			alg.showStats();
+			return b;
+		}
+		else
+		{
+			bool b = exact_cover_with_multiplicities_and_colors(*this, &results, 20);
+			assert(b);
+			print_solution(results);
+			print_exact_cover_with_multiplicities_and_colors_stats();
+			return b;
+		}
 	}
-#else
-	bool test()
-	{
-		vector<vector<int>> results;
-		bool b = exact_cover_with_multiplicities_and_colors(*this, &results, 20);
-		assert(b);
-		print_solution(results);
-		print_exact_cover_with_multiplicities_and_colors_stats();
-		return b;
-	}
-#endif
 };
 
 class SimpleA : public SimpleTester
@@ -165,7 +169,8 @@ public:
 		sequences[1].push_back("p");
 		sequences[1].push_back("r");
 		sequences[1].push_back("x:A");
-		sequences[1].push_back("y");
+		// This is different from Knuth - we'll just create a unique color now.
+		sequences[1].push_back("y:D");
 
 		sequences[2].push_back("p");
 		sequences[2].push_back("x:B");
@@ -179,6 +184,7 @@ public:
 		colors.push_back("A");
 		colors.push_back("B");
 		colors.push_back("C");
+		colors.push_back("D");
 	}
 };
 ///////////////////////////////////////////////////////////////////////////////
@@ -229,14 +235,21 @@ void test()
 #endif
 #if PREVIOUS
 	{
-		class SimpleAB sab(2, 3, 2, 3);
+		SimpleAB sab(2, 3, 2, 3);
 		assert(sab.test());
 	}
 #endif
 #if PREVIOUS
 	{
-		class SimpleABPair sab(3, 6, 3, 3);
+		SimpleABPair sab(3, 6, 3, 3);
 		assert(sab.test());
+	}
+#endif
+
+#if PREVIOUS
+	{
+		SimpleColoring sc;
+		assert(sc.test());
 	}
 #endif
 }
@@ -254,14 +267,18 @@ void partridge_problem()
 	
 	// There are over 1000 solution, which would take a long time.
 	bool b;
-#ifdef USE_POINTER_VERSION
-	AlgMPointer alg(problem);
-	b = alg.exactCover(&results, 8);
-	alg.showStats();
-#else
-	b = exact_cover_with_multiplicities_and_colors(problem, &results, 8);
-	print_exact_cover_with_multiplicities_and_colors_stats();
-#endif
+	if (UsePointerVersion)
+	{
+		AlgMPointer alg(problem);
+		b = alg.exactCover(&results, 8);
+		alg.setHeuristic(NonSharpPreference);
+		alg.showStats();
+	}
+	else
+	{
+		b = exact_cover_with_multiplicities_and_colors(problem, &results, 8, NonSharpPreference);
+		print_exact_cover_with_multiplicities_and_colors_stats();
+	}
 
 	if (b)
 	{
@@ -283,12 +300,14 @@ void partridge_problem()
 	}
 }
 ///////////////////////////////////////////////////////////////////////////////
-void world_rectangle_problem()
+void word_rectangle_problem()
 {
 	WordRectangle word_rectangle;
 
-	//bool b = word_rectangle.readWords("20k_words.txt");
-	bool b = word_rectangle.readWords("test_words.txt");	// A smaller, simpler test case.
+	const char* world_list_file = SmallWordList ? "test_words.txt" : "20k_words.txt";
+	
+	bool b = word_rectangle.readWords(world_list_file);	// A smaller, simpler test case.
+	
 	assert(b);
 	cout << "Word list read successfully." << endl;
 
@@ -297,20 +316,23 @@ void world_rectangle_problem()
 
 	cout << "Problem generated." << endl;
 
-	//problem.print();
-
 	vector<vector<int>> results;
 
-#ifdef USE_POINTER_VERSION
-	AlgMPointer alg(problem);
-	b = alg.exactCover(&results, 100);
-	alg.format();
-#else
-	b = exact_cover_with_multiplicities_and_colors(problem, &results, 100, 
-		true  // We want the non-sharp preference heuristic
+	if (UsePointerVersion)
+	{
+		AlgMPointer alg(problem);
+		alg.setHeuristic(NonSharpPreference);
+		b = alg.exactCover(&results, 100);
+		alg.showStats();
+	}
+	else
+	{
+		b = exact_cover_with_multiplicities_and_colors(problem, &results, 100,
+			NonSharpPreference
 		);
-	print_exact_cover_with_multiplicities_and_colors_stats();
-#endif
+		print_exact_cover_with_multiplicities_and_colors_stats();
+	}
+
 	if (b)
 	{
 		cout << results.size() << " word rectangle(s) found" << endl;
@@ -319,10 +341,6 @@ void world_rectangle_problem()
 		{
 			const vector<int> &result = results[idx];
 
-			/*for (int i = 0; i < result.size(); i++)
-			{
-				problem.format_sequence(result[i], cout);
-			}*/
 			cout << "Rectangle:" << endl << endl;
 			word_rectangle.writeRectangle(problem, result);
 			cout << endl;
@@ -335,15 +353,51 @@ void world_rectangle_problem()
 
 }
 ///////////////////////////////////////////////////////////////////////////////
-int main()
+int main(int argc, char *argv[])
 {
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF | _CRTDBG_CHECK_ALWAYS_DF);
-	//_crtBreakAlloc = 0;	// If you need to debug a particular alloc.
+	// _crtBreakAlloc = 0;	// If you need to debug a particular alloc.
 
-	//test();
+	bool run_test = false;
+	bool partridge = true;
+	for (int i = 1; i < argc; i++)
+	{
+		if (strstr(argv[i], "pointer") != nullptr)
+			UsePointerVersion = true;
+		else if (strstr(argv[i], "basic") != nullptr)
+			UsePointerVersion = false;
+		else if (strstr(argv[i], "test") != nullptr)
+			run_test = true;
+		else if (strstr(argv[i], "smallwordlist") != nullptr) // check before word
+			SmallWordList = true;
+		else if (strstr(argv[i], "bigwordlist") != nullptr)
+			SmallWordList = false;
+		else if (strstr(argv[i], "word") != nullptr)
+			partridge = false;
+		else if (strstr(argv[i], "partridge") != nullptr)
+			partridge = true;
+		else if (strstr(argv[i], "nonsharp") != nullptr)
+			NonSharpPreference = true;
+#ifdef ENABLE_TRACE
+		else if (strstr(argv[i], "notrace") != nullptr)
+			EnableTrace = true;
+#endif
+	}
 
-	partridge_problem();
-	//world_rectangle_problem();
+	if (run_test)
+	{
+		test();
+		return -1;
+	}
+
+	if (partridge)
+	{
+		partridge_problem();
+	}
+	else
+	{
+		word_rectangle_problem();
+	}
 
 	assert(_CrtCheckMemory());
 	cout << "Done!\n";

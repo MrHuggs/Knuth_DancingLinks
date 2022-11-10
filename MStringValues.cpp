@@ -77,6 +77,7 @@ static chrono::steady_clock::time_point run_complete;
 static size_t solution_count;
 static long long loop_count;
 static long long level_count;
+static bool non_sharp_preference;
 
 static void get_counts()
 {
@@ -727,12 +728,13 @@ static const char *format_sequence(int q)
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 bool exact_cover_with_multiplicities_and_colors(const ExactCoverWithMultiplicitiesAndColors& problem, 
-					vector<vector<int>> *presults, int max_results = 1, bool non_sharp_preference = false)
+					vector<vector<int>> *presults, int max_results = 1, bool _non_sharp_preference = false)
 {
 	//problem.print();
 	problem.assertValid();
 	assert(_CrtCheckMemory());
 	AlgXStates state = ax_Initialize;
+	non_sharp_preference = _non_sharp_preference;
 
 	pproblem = &problem;
 
@@ -789,7 +791,7 @@ bool exact_cover_with_multiplicities_and_colors(const ExactCoverWithMultipliciti
 				// This is needed for the word rectangle problem, but not in general:
 				if (non_sharp_preference)
 				{
-					if (branch_factor > 1 && headers[j].pName[0] != '#')
+					if (branch_factor > 1 && headers[j].pName[0] == '#')
 					{
 						branch_factor += 10000;
 					}
@@ -1047,6 +1049,9 @@ void print_exact_cover_with_multiplicities_and_colors_stats()
 	auto run_dt = std::chrono::duration_cast<std::chrono::microseconds>(run_complete - setup_complete);
 
 	cout << "Exact cover with multiplicities and colors found " << solution_count << " solutions." << endl;
+
+	if (non_sharp_preference)
+		cout << "\tThe non-sharp preference heuristic was used." << endl;
 
 	cout << "\tTime used (microseconds): " << setup_dt.count() << " for setup and " <<
 		run_dt.count() << " to run." << endl;

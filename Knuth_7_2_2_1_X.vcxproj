@@ -140,6 +140,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="AlgMPointer.cpp" />
+    <ClCompile Include="Common.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="MStringValues.cpp" />
     <ClCompile Include="PartridgePuzzle.cpp" />

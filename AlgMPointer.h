@@ -108,9 +108,21 @@ public:
 
 			stream << pcell->pTop->pName;
 
-			if (pcell->pTop->pColor)
+			const char* pcolor = nullptr;
+			if (pcell->pColor)
 			{
-				stream << ":" << pcell->pTop->pColor;
+				pcolor = pcell->pColor;
+			}
+			else
+			{
+				// If some other sequence has activated this cell's color, the cell color
+				// get null'd out. The color is in the item:
+				pcolor = pcell->pTop->pColor;
+			}
+
+			if (pcolor)
+			{
+				stream << ":" << pcolor;
 			}
 
 			pcell = pcell->pRight;
@@ -184,7 +196,8 @@ class AlgMPointer
 	friend class AlgMChecksum;
 
 	ItemHeader* pFirstActiveItem;
-	
+	ItemHeader* pFirstSecondaryItem;
+
 	size_t TotalItems;
 	ItemHeader* pHeaders;
 
@@ -216,8 +229,10 @@ class AlgMPointer
 	}
 
 	int CurLevel;
-
 	LevelState* pLevelState;
+
+	// Heuristic that can be used with item selection:
+	bool NonSharpPreference;
 
 #ifndef NDEBUG
 	AlgMChecksum* pChecksums;
@@ -250,15 +265,16 @@ class AlgMPointer
 	void reactivateOrUncover(ItemHeader* pitem);
 	void recordSolution(std::vector<std::vector<int>>* presults);
 
+	bool isLinked(const ItemHeader* pitem) const;
 	void assertValid() const;
 	void testChecksum();
 public:
 	AlgMPointer(const ExactCoverWithMultiplicitiesAndColors& problem);
 	~AlgMPointer();
 
+	void setHeuristic(bool b) { NonSharpPreference = b; }
 	void format(std::ostream& stream = std::cout) const;
-
-	bool testUncoverCover();
+	void print() { format(); }		// Just so we can call from the debugger if we want.
 
 	bool exactCover(std::vector<std::vector<int>>* presults, int max_results = 1);
 
@@ -269,5 +285,10 @@ public:
 	long long levelCount;
 
 	void showStats(std::ostream& stream = std::cout) const;
+
+#ifndef NDEBUG
+	bool testUncoverCover();
+#endif
+
 };
 

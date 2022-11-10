@@ -153,6 +153,18 @@ const char* AlgMPointer::getColor(const char* pc)
 	return nullptr;
 }
 ///////////////////////////////////////////////////////////////////////////////
+bool AlgMPointer::isLinked(const ItemHeader* pitem) const
+{
+
+	for (ItemHeader* plinked = pFirstActiveItem; plinked; plinked = plinked->pNextActive)
+	{
+		if (pitem == plinked)
+			return true;
+	}
+
+	return false;
+}
+///////////////////////////////////////////////////////////////////////////////
 void AlgMPointer::assertValid() const
 {
 	ItemHeader* pprev = nullptr;
@@ -183,19 +195,7 @@ void AlgMPointer::assertValid() const
 			assert(pitem->UsedCount >= 0);
 			assert(pitem->UsedCount <= pitem->Max);
 
-			bool islinked = false;
-			if (pitem == pFirstActiveItem)
-			{
-				islinked = true;
-			}
-			else if (pitem->pPrevActive != nullptr && pitem->pPrevActive->pNextActive == pitem)
-			{
-				islinked = true;
-			}
-			else if (pitem->pNextActive != nullptr && pitem->pNextActive->pPrevActive == pitem)
-			{
-				islinked = true;
-			}
+			bool islinked = isLinked(pitem);
 
 			if (islinked)
 			{
@@ -242,7 +242,9 @@ AlgMPointer::AlgMPointer(const ExactCoverWithMultiplicitiesAndColors& problem) :
 		prev = pheader;
 		pheader++;
 	}
+	pFirstActiveItem = pHeaders;
 
+	prev = nullptr;
 	for (int i = 0; i < Problem.secondary_options.size(); i++)
 	{
 		pheader->pName = Problem.secondary_options[i];
@@ -250,13 +252,18 @@ AlgMPointer::AlgMPointer(const ExactCoverWithMultiplicitiesAndColors& problem) :
 
 		pheader->pPrevActive = prev;
 		if (prev)
+		{
 			prev->pNextActive = pheader;
+		}
+		else
+		{
+			pFirstSecondaryItem = pheader;
+		}
 		prev = pheader;
 
 		pheader++;
 	}
 
-	pFirstActiveItem = pHeaders;
 
 	TotalCells = 0;
 	for (int i = 0; i < Problem.sequences.size(); i++)
@@ -344,6 +351,8 @@ AlgMPointer::AlgMPointer(const ExactCoverWithMultiplicitiesAndColors& problem) :
 	// Longest possible solution is max items, and we could go 1 level deeper:
 	pLevelState = new LevelState[MaxItems + 1];
 
+	NonSharpPreference = false;
+
 #ifndef NDEBUG
 	pChecksums = new AlgMChecksum[MaxItems + 1];
 	for (int i = 0; i < MaxItems + 1; i++)
@@ -396,12 +405,8 @@ void AlgMPointer::relinkCellVertically(MCell* pcell)
 ///////////////////////////////////////////////////////////////////////////////
 void AlgMPointer::unlinkItem(ItemHeader *pitem)
 {
-#ifndef NDEBUG
-	for (ItemHeader* plinked = pFirstActiveItem; plinked != pitem; plinked = plinked->pNextActive)
-	{
-		assert(plinked);	// Should be currently linked.
-	}
-#endif
+	assert(isLinked(pitem));
+
 	if (pitem == pFirstActiveItem)
 	{
 		pFirstActiveItem = pitem->pNextActive;
@@ -419,8 +424,6 @@ void AlgMPointer::unlinkItem(ItemHeader *pitem)
 ///////////////////////////////////////////////////////////////////////////////
 void AlgMPointer::cover(ItemHeader* pitem)
 {
-	unlinkItem(pitem);
-
 	MCell* pcell = pitem->pTopCell;
 
 	while (pcell)
@@ -439,7 +442,7 @@ void AlgMPointer::sequenceUsed(MCell* pcell)
 
 		if (pright->pColor)
 		{
-			setcolor(pcell);
+			setcolor(pright);
 		}
 		else
 		{
@@ -453,12 +456,8 @@ void AlgMPointer::setcolor(MCell* pcell)
 	assert(pcell->pTop->pColor == nullptr);  // Should not have been assigned yet
 	pcell->pTop->pColor = pcell->pColor;
 
-	for (MCell* plinked = pcell->pTop->pTopCell; plinked != pcell; plinked = plinked->pDown)
+	for (MCell *plinked = pcell->pTop->pTopCell; plinked; plinked = plinked->pDown)
 	{
-		if (plinked == pcell)
-		{
-			continue;
-		}
 		assert(plinked->pColor != nullptr);
 		if (plinked->pColor == pcell->pColor)
 		{
@@ -478,20 +477,30 @@ void AlgMPointer::setcolor(MCell* pcell)
 ///////////////////////////////////////////////////////////////////////////////
 void AlgMPointer::deactivateOrCover(ItemHeader* pitem)
 {
-	if (pitem->UsedCount == pitem->Max)
+	if (!pitem->isPrimary())
 	{
-		cover(pitem);
+		return;
 	}
-	else if (pitem->UsedCount >= pitem->Min)
+
+	if (pitem->UsedCount == pitem->Min)
 	{
-		// The items is no longer active - we don't need any more sequences that reference it,
-		// but we don't cover it.
+		// The item is no longer active - we don't need any more sequences that reference it,
+		// but we don't cover it either because it could be used again.
 		unlinkItem(pitem);
+	}
+	else if (pitem->UsedCount > pitem->Min)
+	{
+		// Should have already been unlinked.
+		assert(!isLinked(pitem));
 	}
 	else
 	{
-		assert(pitem->UsedCount < pitem->Min);
-		/// Don nothing - this item needs to be used again.
+		assert(isLinked(pitem));
+	}
+
+	if (pitem->UsedCount == pitem->Max)
+	{
+		cover(pitem);
 	}
 }
 ///////////////////////////////////////////////////////////////////////////////
@@ -513,7 +522,6 @@ void AlgMPointer::tweak(MCell* pcell)
 ///////////////////////////////////////////////////////////////////////////////
 void AlgMPointer::untweak_all()
 {
-	assertValid();
 	ItemHeader* pitem = pLevelState[CurLevel].pItem;
 
 	MCell *pcell = pLevelState[CurLevel].pStartingCell;
@@ -538,8 +546,6 @@ void AlgMPointer::untweak_all()
 
 		pcell = pcell->pDown;
 	}
-
-	assertValid();
 }
 ///////////////////////////////////////////////////////////////////////////////
 void AlgMPointer::hide(MCell* pcell)
@@ -588,8 +594,6 @@ void AlgMPointer::relinkItem(ItemHeader* pitem)
 ///////////////////////////////////////////////////////////////////////////////
 void AlgMPointer::uncover(ItemHeader* pitem)
 {
-	relinkItem(pitem);
-
 	MCell* pcell = pitem->pTopCell;
 
 	while (pcell)
@@ -622,13 +626,8 @@ void AlgMPointer::clearColor(MCell* pcell)
 	pcell->pTop->pColor = nullptr;
 
 	// Note that this is not exactly the reverse of the setColor order.
-	for (MCell* plinked = pcell->pTop->pTopCell; plinked != pcell; plinked = plinked->pDown)
+	for (MCell* plinked = pcell->pTop->pTopCell; plinked; plinked = plinked->pDown)
 	{
-		if (plinked == pcell)
-		{
-			continue;
-		}
-		
 		if (plinked->pColor == nullptr)
 		{
 			// This cell matches the chosen cell's color. We can continue using the
@@ -648,11 +647,17 @@ void AlgMPointer::clearColor(MCell* pcell)
 ///////////////////////////////////////////////////////////////////////////////
 void AlgMPointer::reactivateOrUncover(ItemHeader* pitem)
 {
+	if (!pitem->isPrimary())
+	{
+		return;
+	}
+
 	if (pitem->UsedCount == pitem->Max - 1)
 	{
 		uncover(pitem);
 	}
-	else if (pitem->UsedCount == pitem->Min - 1)
+
+	if (pitem->UsedCount == pitem->Min - 1)
 	{
 		relinkItem(pitem);
 	}
@@ -667,62 +672,77 @@ void AlgMPointer::format(ostream& stream) const
 	separator[nsep] = '\n';
 	separator[nsep + 1] = 0;
 
-	int *item_indexes = (int *) _alloca(TotalCells * sizeof(int));
+	int *item_indexes = (int *) _alloca(TotalItems * sizeof(int));
+	ItemHeader** pitems = (ItemHeader**)_alloca(TotalItems * sizeof(ItemHeader *));
 	int idx = 0;
 	for (ItemHeader* pitem = pFirstActiveItem; pitem; pitem = pitem->pNextActive)
 	{
+		pitems[idx] = pitem;
 		item_indexes[pitem - pHeaders] = idx++;
 	}
 
+	// Secondary items don't get deactivated, so this will be all of them:
+	for (ItemHeader* pitem = pFirstSecondaryItem; pitem; pitem = pitem->pNextActive)
+	{
+		pitems[idx] = pitem;
+		item_indexes[pitem - pHeaders] = idx++;
+	}
+
+
 	stream << separator;
 
-	idx = 1;
-	const int lable_len = 10;
-	stream << setw(lable_len) << "Index";
-	for (auto pitem = pFirstActiveItem; pitem; pitem = pitem->pNextActive)
+	const int label_len = 10;
+	stream << setw(label_len) << "Index";
+	for (int i = 0; i < idx; i++)
 	{
-		stream << setw(5) << idx++;
+		stream << setw(5) << item_indexes[pitems[i]-pHeaders];
 	}
 	stream << endl;
 
-	stream << setw(lable_len) << "Item";
-	for (auto pitem = pFirstActiveItem; pitem; pitem = pitem->pNextActive)
+	stream << setw(label_len) << "Item";
+	for (int i = 0; i < idx; i++)
 	{
+		auto pitem = pitems[i];
 		stream << setw(5) << pitem->pName;
 	}
 	stream << endl;
 
-	stream << setw(lable_len) << "Min";
-	for (auto pitem = pFirstActiveItem; pitem; pitem = pitem->pNextActive)
+	stream << setw(label_len) << "Min";
+	for (int i = 0; i < idx; i++)
 	{
+		auto pitem = pitems[i];
 		stream << setw(5) << pitem->Min;
 	}
 	stream << endl;
 
-	stream << setw(lable_len) << "Max";
-	for (auto pitem = pFirstActiveItem; pitem; pitem = pitem->pNextActive)
+	stream << setw(label_len) << "Max";
+	for (int i = 0; i < idx; i++)
 	{
+		auto pitem = pitems[i];
 		stream << setw(5) << pitem->Max;
 	}
 	stream << endl;
 
-	stream << setw(lable_len) << "Available";
-	for (auto pitem = pFirstActiveItem; pitem; pitem = pitem->pNextActive)
+	stream << setw(label_len) << "Available";
+	for (int i = 0; i < idx; i++)
 	{
+		auto pitem = pitems[i];
 		stream << setw(5) << pitem->AvailableSequences;
 	}
 	stream << endl;
 
-	stream << setw(lable_len) << "UsedCount";
-	for (auto pitem = pFirstActiveItem; pitem; pitem = pitem->pNextActive)
+	stream << setw(label_len) << "UsedCount";
+	for (int i = 0; i < idx; i++)
 	{
+		auto pitem = pitems[i];
 		stream << setw(5) << pitem->UsedCount;
 	}
 	stream << endl;
 
-	stream << setw(lable_len) << "Color";
-	for (auto pitem = pFirstActiveItem; pitem; pitem = pitem->pNextActive)
+	stream << setw(label_len) << "Color";
+	for (int i = 0; i < idx; i++)
 	{
+		auto pitem = pitems[i];
 		stream << setw(5) << ((pitem->pColor) ? pitem->pColor : "");
 	}
 	stream << endl;
@@ -750,7 +770,7 @@ void AlgMPointer::format(ostream& stream) const
 			memset(pseq_cells, 0, TotalItems * sizeof(MCell*));
 
 			// Record all the items used for this sequence:
-			stream << setw(lable_len) << "";
+			stream << setw(label_len) << "";
 
 			MCell* poutput_cell = pfirst;
 			do
@@ -767,8 +787,18 @@ void AlgMPointer::format(ostream& stream) const
 			// Write the items:
 			for (int i = 0; i < TotalItems; i++)
 			{
-				if (pseq_cells[i])
-					stream << setw(5) << pseq_cells[i]->pTop->pName;
+				auto pcell = pseq_cells[i];
+				if (pcell)
+				{
+					string s = pcell->pTop->pName;
+					const char* pcolor = pcell->pColor ? pcell->pColor : pcell->pTop->pColor;
+					if (pcolor)
+					{
+						s += ':';
+						s += pcolor;
+					}
+					stream << setw(5) << s;
+				}
 				else
 					stream << setw(5) << "";
 			}
@@ -784,17 +814,22 @@ bool AlgMPointer::exactCover(std::vector<std::vector<int>>* presults, int max_re
 	assert(presults->size() == 0);
 	assert(_CrtCheckMemory());
 
+	if (TotalItems < 50)
+	{
+		Problem.print();
+		print();
+	}
+#ifndef NDEBUG
+	assert(testUncoverCover());
+#endif
 
 	auto start_time = std::chrono::high_resolution_clock::now();
 
 	CurLevel = 0;
 	pLevelState[0].Action = ag_Init;
 
-
 	Solutions = 0;
 	loopCount = levelCount = 0;
-	if (TotalItems < 50)
-		format();
 
 	for (;;)
 	{
@@ -845,6 +880,17 @@ bool AlgMPointer::exactCover(std::vector<std::vector<int>>* presults, int max_re
 				for (ItemHeader* pitem = pFirstActiveItem; pitem; pitem = pitem->pNextActive)
 				{
 					int branching_factor = pitem->branchingFactor();
+
+					// This implements the non-sharp preference heuristic.
+					// This is needed for the word rectangle problem, but not in general:
+					if (NonSharpPreference)
+					{
+						if (branching_factor > 1 && pitem->pName[0] == '#')
+						{
+							branching_factor += 10000;
+						}
+					}
+
 					if (branching_factor < smallest_branch_factor)
 					{
 						smallest_branch_factor = branching_factor;
@@ -886,10 +932,10 @@ bool AlgMPointer::exactCover(std::vector<std::vector<int>>* presults, int max_re
 				assert(state.pCurCell);
 				state.TryCellCount--;
 
+				TRACE("\t\t%i - trying: %s\n", CurLevel, state.pCurCell->format());
+
 				// If we selected the current cell, all the items it references get used:
 				sequenceUsed(state.pCurCell);
-
-				TRACE("\t\t%i - trying: %s\n", CurLevel, state.pCurCell->format());
 
 				CurLevel++;
 				pLevelState[CurLevel].Action = ag_EnterLevel;
@@ -1017,12 +1063,15 @@ void AlgMPointer::showStats(std::ostream& stream) const
 {
 	cout << "Pointer based Exact cover with multiplicities and colors found " << Solutions << " solutions." << endl;
 
+	if (NonSharpPreference)
+		cout << "\tThe non-sharp preference heuristic was used." << endl;
 	cout << "\tTime used (microseconds): " << setupTime << " for setup and " <<
 		runTime << " to run." << endl;
 
 	cout << "\tLoop ran " << loopCount << " times with " << levelCount << " level transitions." << endl;
 }
 ///////////////////////////////////////////////////////////////////////////////
+#ifndef NDEBUG
 bool AlgMPointer::testUncoverCover()
 {
 
@@ -1057,5 +1106,5 @@ bool AlgMPointer::testUncoverCover()
 	}
 	return pass;
 }
-
+#endif
 
