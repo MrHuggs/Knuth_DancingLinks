@@ -8,45 +8,67 @@
 #include <chrono>
 
 #include "Common.h"
-#include "ProblemGenerator.h"
 #include "AlgMPointer.h"
 
 using namespace std;
 ///////////////////////////////////////////////////////////////////////////////
 //
-// AlgMChecksum
+// MCell
 //
 ///////////////////////////////////////////////////////////////////////////////
-#ifdef SMALL_CHECKSUM
-#include "util/crc.h"
-
-void AlgMChecksum::init(const AlgMPointer& alg)
+void MCell::format(std::ostream& stream) const
 {
-	static bool binit = false;
-	if (!binit)
+	const MCell* pstart = this;
+	// Start from a consistent point in the sequence. If the cells are block allocated in
+	// order (and they are), this will start from the first cell:
+	while (pstart->pLeft < this)
+		pstart = pstart->pLeft;
+
+
+	const MCell* pcell = pstart;
+	do
 	{
-		binit = true;
-		crcInit();
-	}
+		if (pcell != pstart)
+			stream << " ";
+
+		stream << pcell->pTop->pName;
+
+		const char* pcolor = nullptr;
+		if (pcell->pColor)
+		{
+			pcolor = pcell->pColor;
+		}
+		else
+		{
+			// If some other sequence has activated this cell's color, the cell color
+			// get null'd out. The color is in the item:
+			pcolor = pcell->pTop->pColor;
+		}
+
+		if (pcolor)
+		{
+			stream << ":" << pcolor;
+		}
+
+		pcell = pcell->pRight;
+	} while (pcell != pstart);
 }
 ///////////////////////////////////////////////////////////////////////////////
-void AlgMChecksum::checksum(const AlgMPointer& alg)
+const char* MCell::format() const
 {
+	std::ostringstream buf;
+	format(buf);
+	static char cbuf[1024];
+	auto l = std::min(buf.str().length(), sizeof(cbuf) - 1);
+	memcpy(cbuf, buf.str().c_str(), l);
+	cbuf[l] = 0;
 
-	crc parts[2];
-	parts[0] = crcFast((unsigned char*)alg.pHeaders, (int)alg.TotalItems * sizeof(ItemHeader));
-	parts[1] = crcFast((unsigned char*)alg.pCells, (int)alg.TotalCells * sizeof(MCell));
-
-	EntryCheckSum = crcFast((unsigned char*)parts, sizeof(parts));
-
+	return cbuf;
 }
 ///////////////////////////////////////////////////////////////////////////////
-bool AlgMChecksum::compare(const AlgMChecksum& other, const AlgMPointer& alg) const
-{
-	return EntryCheckSum == other.EntryCheckSum;
-}
-///////////////////////////////////////////////////////////////////////////////
-#else
+//
+// AlgMChecksum
+//
 ///////////////////////////////////////////////////////////////////////////////
 AlgMChecksum::AlgMChecksum()
 {
@@ -112,7 +134,6 @@ bool AlgMChecksum::compare(const AlgMChecksum& other, const AlgMPointer& alg) co
 	}
 	return same;
 }
-#endif
 ///////////////////////////////////////////////////////////////////////////////
 //
 // AlgMPointer
@@ -144,6 +165,10 @@ ItemHeader* AlgMPointer::getItem(const char* pc, size_t len)
 ///////////////////////////////////////////////////////////////////////////////
 const char* AlgMPointer::getColor(const char* pc)
 {
+	// For consistency in asserts and checkums, we would like all colors to use
+	// the same pointer. A sequence item could reference a color (e.g. "x:red")
+	// with a unique address. This routine converts such a pointer to one from
+	// the input problem. 
 	for (auto pproblem_color : Problem.colors)
 	{
 		if (strcmp(pc, pproblem_color) == 0)
@@ -155,13 +180,11 @@ const char* AlgMPointer::getColor(const char* pc)
 ///////////////////////////////////////////////////////////////////////////////
 bool AlgMPointer::isLinked(const ItemHeader* pitem) const
 {
-
 	for (ItemHeader* plinked = pFirstActiveItem; plinked; plinked = plinked->pNextActive)
 	{
 		if (pitem == plinked)
 			return true;
 	}
-
 	return false;
 }
 ///////////////////////////////////////////////////////////////////////////////
@@ -244,22 +267,10 @@ AlgMPointer::AlgMPointer(const ExactCoverWithMultiplicitiesAndColors& problem) :
 	}
 	pFirstActiveItem = pHeaders;
 
-	prev = nullptr;
 	for (int i = 0; i < Problem.secondary_options.size(); i++)
 	{
 		pheader->pName = Problem.secondary_options[i];
 		pheader->Min = pheader->Max = -1;
-
-		pheader->pPrevActive = prev;
-		if (prev)
-		{
-			prev->pNextActive = pheader;
-		}
-		else
-		{
-			pFirstSecondaryItem = pheader;
-		}
-		prev = pheader;
 
 		pheader++;
 	}
@@ -506,7 +517,7 @@ void AlgMPointer::deactivateOrCover(ItemHeader* pitem)
 ///////////////////////////////////////////////////////////////////////////////
 void AlgMPointer::tweak(MCell* pcell)
 {
-	// All sequences above this cell should lave already been tweaked.
+	// All sequences above this cell should have already been tweaked.
 	assert(pcell->pTop->pTopCell == pcell);
 
 	hide(pcell);
@@ -625,21 +636,21 @@ void AlgMPointer::clearColor(MCell* pcell)
 	assert(pcell->pTop->pColor == pcell->pColor);
 	pcell->pTop->pColor = nullptr;
 
-	// Note that this is not exactly the reverse of the setColor order.
+	// Note that this is not exactly the reverse of the setColor order. Both
+	// are going top-down.
 	for (MCell* plinked = pcell->pTop->pTopCell; plinked; plinked = plinked->pDown)
 	{
 		if (plinked->pColor == nullptr)
 		{
-			// This cell matches the chosen cell's color. We can continue using the
-			// corresponding sequence, but set the color to null so we won't have to
-			// check in the future.
+			// This cell's color was set to null, which means it matches the target
+			// color when the target cell was selected. Set it back now.
 			plinked->pColor = pcell->pColor;
 		}
 		else
 		{
 			assert(plinked->pColor != pcell->pColor);
-			// Uses some other color. Hide the corresponding sequence, but leave it
-			// linked horizontally so that we can find it if we restore.
+			// This cell has some other color, so it wasn't compatible; it
+			// would have been hidden, so unhide now.
 			unhide(plinked);
 		}
 	}
@@ -654,6 +665,8 @@ void AlgMPointer::reactivateOrUncover(ItemHeader* pitem)
 
 	if (pitem->UsedCount == pitem->Max - 1)
 	{
+		// Use count just transitioned from Max, so the item is available
+		// again:
 		uncover(pitem);
 	}
 
@@ -681,9 +694,10 @@ void AlgMPointer::format(ostream& stream) const
 		item_indexes[pitem - pHeaders] = idx++;
 	}
 
-	// Secondary items don't get deactivated, so this will be all of them:
-	for (ItemHeader* pitem = pFirstSecondaryItem; pitem; pitem = pitem->pNextActive)
+	// Secondary items don't get deactivated, so we want to print all of them:
+	for (int i = 0; i < Problem.secondary_options.size(); i++)
 	{
+		ItemHeader* pitem = pHeaders + Problem.primary_options.size() + i;
 		pitems[idx] = pitem;
 		item_indexes[pitem - pHeaders] = idx++;
 	}
@@ -834,12 +848,8 @@ bool AlgMPointer::exactCover(std::vector<std::vector<int>>* presults, int max_re
 	for (;;)
 	{
 		loopCount++;
-		static int targ_loop = -1;
-		if (targ_loop == loopCount)
-			format();
 
 		assertValid();
-		assert(_CrtCheckMemory());
 
 		LevelState& state = pLevelState[CurLevel];
 		TRACE("%lli:%i - %s\n", loopCount, CurLevel, ActionName(state.Action));
@@ -1038,10 +1048,7 @@ void AlgMPointer::recordSolution(std::vector<std::vector<int>>* presults)
 	result.resize(CurLevel);
 	for (int lout = 0; lout < CurLevel; lout++)
 	{
-		// c will be the cell index of a character in the string we chose.
 		MCell *pcell = pLevelState[lout].pCurCell;
-
-		//TRACE("\t%s\n", format_sequence(c));
 
 		for (;;)
 		{

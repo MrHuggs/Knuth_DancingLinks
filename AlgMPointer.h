@@ -21,6 +21,8 @@ enum AlgXStates;
 ///////////////////////////////////////////////////////////////////////////////
 class ItemHeader
 {
+	// Header for both primary and secondary items. Secondary items can be
+	// used 0 more times and will have a color assigned to them.
 public:
 	ItemHeader()
 	{
@@ -29,7 +31,8 @@ public:
 
 	const char* pName;
 
-	// Linked list of active headers. An primary item can be active, inactive  and covered, or inactive and uncovered.
+	// Linked list of active headers. A primary item can be active, inactive and covered,
+	// or inactive and uncovered.
 	ItemHeader* pPrevActive;
 	ItemHeader* pNextActive;
 
@@ -39,7 +42,6 @@ public:
 	int Min;
 	int Max;
 
-
 	bool isPrimary() const { return Max >= 0; }
 
 	// How many times this item has been assigned in the current partial solution:
@@ -48,10 +50,8 @@ public:
 	// How many sequences are available that use this item:
 	int AvailableSequences;
 
-
 	// The branching factor is how many choices we have for the next sequence containing
 	// this item.
-	
 	int branchingFactor() const
 	{
 		assert(UsedCount <= Max);
@@ -66,12 +66,13 @@ public:
 		return Max - UsedCount;
 	}
 
-	// For a secondary item, the currently active color.
+	// For a secondary item, the currently active color:
 	const char* pColor;	// or null if no color has been assigned.
 };
 ///////////////////////////////////////////////////////////////////////////////
 class MCell
 {
+	// Represents an items used in a sequence:
 public:
 	MCell()
 	{
@@ -91,55 +92,8 @@ public:
 	MCell* pRight;
 
 
-	void format(std::ostream& stream) const
-	{
-		const MCell* pstart = this;
-		// Start from a consistent point in the sequence. If the cells are block allocated in
-		// order (and they are), this will start from the first cell:
-		while (pstart->pLeft < this)
-			pstart = pstart->pLeft;
-
-
-		const MCell* pcell = pstart;
-		do
-		{
-			if (pcell != pstart)
-				stream << " ";
-
-			stream << pcell->pTop->pName;
-
-			const char* pcolor = nullptr;
-			if (pcell->pColor)
-			{
-				pcolor = pcell->pColor;
-			}
-			else
-			{
-				// If some other sequence has activated this cell's color, the cell color
-				// get null'd out. The color is in the item:
-				pcolor = pcell->pTop->pColor;
-			}
-
-			if (pcolor)
-			{
-				stream << ":" << pcolor;
-			}
-
-			pcell = pcell->pRight;
-		} while (pcell != pstart);
-	}
-
-	const char *format() const
-	{
-		std::ostringstream buf;
-		format(buf);
-		static char cbuf[1024];
-		auto l = std::min(buf.str().length(), sizeof(cbuf) - 1);
-		memcpy(cbuf, buf.str().c_str(), l);
-		cbuf[l] = 0;
-
-		return cbuf;
-	}
+	void format(std::ostream& stream) const;
+	const char* format() const;
 
 };
 ///////////////////////////////////////////////////////////////////////////////
@@ -165,16 +119,12 @@ struct LevelState
 	int TryCellCount;
 };
 ///////////////////////////////////////////////////////////////////////////////
+// The goal of dancing links is to be able to descend the search tree and
+// then quickly backtrack. The backtracking code is supposed to restore
+// the items & cells to their previous state exactly. The checksum code
+// is used to make sure this works properly.
 class AlgMChecksum
 {
-//#define SMALL_CHECKSUM
-#ifdef SMALL_CHECKSUM
-	unsigned int EntryCheckSum;
-public:
-	void checksum(const AlgMPointer& alg);
-	void init(const AlgMPointer& alg);
-	bool compare(const AlgMChecksum& other, const AlgMPointer& alg) const;
-#else
 	ItemHeader* pHeaders;
 	MCell* pCells;
 public:
@@ -186,17 +136,13 @@ public:
 	void checksum(const AlgMPointer &alg);
 
 	bool compare(const AlgMChecksum& other, const AlgMPointer& alg) const;
-#endif
-
 };
-
-
+///////////////////////////////////////////////////////////////////////////////
 class AlgMPointer
 {
 	friend class AlgMChecksum;
 
 	ItemHeader* pFirstActiveItem;
-	ItemHeader* pFirstSecondaryItem;
 
 	size_t TotalItems;
 	ItemHeader* pHeaders;
@@ -228,6 +174,7 @@ class AlgMPointer
 		}
 	}
 
+	// This stores the search state as we go down the tree:
 	int CurLevel;
 	LevelState* pLevelState;
 
@@ -240,6 +187,7 @@ class AlgMPointer
 #endif
 
 	ItemHeader* getItem(const char* pc, size_t len);
+	// We 
 	const char* getColor(const char* pc);
 
 	// Unlink/relink a single cell in the corresponding list of items:
@@ -278,6 +226,7 @@ public:
 
 	bool exactCover(std::vector<std::vector<int>>* presults, int max_results = 1);
 
+	// Metrics for stats:
 	size_t Solutions;
 	long setupTime;
 	long runTime;

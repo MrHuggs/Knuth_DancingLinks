@@ -63,7 +63,7 @@ public:
 
 	WordRectangle();
 
-	bool readWords(const char *pfile_name = "20k_words.txt");
+	bool readWords(const char *pfile_name);
 
 	void generateProblem(ExactCoverWithMultiplicitiesAndColors* pproblem);
 

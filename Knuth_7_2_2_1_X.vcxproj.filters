@@ -30,18 +30,12 @@
     <ClCompile Include="AlgMPointer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="util\crc.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Common.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Common.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
-    <ClInclude Include="ProblemGenerator.h">
       <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="PartridgePuzzle.h">
@@ -52,9 +46,6 @@
     </ClInclude>
     <ClInclude Include="AlgMPointer.h">
       <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="util\crc.h">
-      <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

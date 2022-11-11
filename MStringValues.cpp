@@ -1,6 +1,6 @@
 //
-// Algorithm modified to support string values (instead of just a char).
-//
+// Implementation of Algorithm M: Covering with Multiplicities and Colors
+// This versin tries to match Knuth as closely as possible.
 //
 #include <algorithm>
 #include <iostream>
@@ -10,9 +10,7 @@
 #include <chrono>
 
 #include "Common.h"
-#include "ProblemGenerator.h"
 using namespace std;
-
 ///////////////////////////////////////////////////////////////////////////////
 // Cell structure to match 7.2.2.1 Table 1:
 struct Header
@@ -41,7 +39,6 @@ struct Cell
 		int color;
 	};
 };
-
 
 ///////////////////////////////////////////////////////////////////////////////
 static const ExactCoverWithMultiplicitiesAndColors* pproblem;
@@ -125,8 +122,8 @@ static void get_counts()
 	ncells =  2 + nprimary_items + nsecondary_items + nsequence_items + nsequences;
 }
 ///////////////////////////////////////////////////////////////////////////////
-// Initialized the header & cell data as in Table 1:
-
+// Initialized the header & cell data as in Table 1.
+//
 // Value to stick in unused field. Don't really need this, but it makes things
 // print more nicely:
 static const int unused = -99;
@@ -219,8 +216,6 @@ static void init_cells()
 
 	int idx_spacer = -1;
 	int prev_first = index;		// First node after the previous spacer.
-
-	
 
 	for (int idx_seq = 0; idx_seq < nsequences; idx_seq++)
 	{
@@ -848,7 +843,6 @@ bool exact_cover_with_multiplicities_and_colors(const ExactCoverWithMultipliciti
 			}
 			if (cells[i].len < headers[i].bound - headers[i].slack) // Not enough items remain
 			{
-				// Why should this occur if we already checked for 0 branching factor?
 				state = ax_Restore;
 				continue;
 			}
