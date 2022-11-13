@@ -15,28 +15,37 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Knuth_7_2_2_1_X.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="AlgXPointer.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="XStringValues.cpp">
+    <ClCompile Include="MStringValues.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="PartridgePuzzle.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="WordRectangle.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="AlgMPointer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Common.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="AlgXPointer.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Common.h">
       <Filter>Source Files</Filter>
     </ClInclude>
-    <ClInclude Include="ProblemGenerator.h">
-      <Filter>Source Files</Filter>
+    <ClInclude Include="PartridgePuzzle.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="WordRectangle.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="AlgMPointer.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

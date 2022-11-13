@@ -1,0 +1,34 @@
+# A short list to replicate the first of Knuth's solutions and for testing.
+#
+
+strut
+tease
+eaten
+press
+step
+tear
+rate
+uses
+tens
+# second rectangle
+#eased
+#agile
+#sense
+#edged
+#ease
+#aged
+#sing
+#else
+#deed
+#
+# Special test case that produced dupicate results.
+#lotto
+#onion
+#3stone
+#tones
+#lost
+#onto
+# this word (tion) enables a solution wiht only 7 letters, which causes duplicate results:
+#tion
+#tone
+#ones
