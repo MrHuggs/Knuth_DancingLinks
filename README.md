@@ -1,10 +1,12 @@
-# AlgorithmM
+# Introduction
 
-This branch implements Algorithm M: Covering with Multiplicities and Colors.
+This project implements "Algorithm M: Covering with Multiplicities and Colors" from [Knuth Volume 4B](https://www-cs-faculty.stanford.edu/~knuth/taocp.html) section 7.2.2.1. It solves the MCC problem.
+
+Other branches in this repo implement Algorithm X and Algorithm C.
 
 ## Differences
 
-Knuth's algorithm allows a the color of an item to be blank to indicate
+Knuth's algorithm allows the color of an item to be blank to indicate
 it has a unique color (e.g. "x:"). The can be easily handed at problem setup
 by simply making a new color. This code assume a color is always supplied.
 
@@ -13,6 +15,8 @@ as opposed to just a bunch of strings.
 
 # Implementations
 
+The project contains two different implementations of the algorithm.
+
 ## MStringValues.cpp
 
 This implementation attempts to follow Knuth as closely as possible, as explained
@@ -20,10 +24,10 @@ in 7.2.2.1.
 
 Specficially:
 
+- Single file implemetation with no classes
 - Uses the same header/cell structure as Knuth
 - Uses the same names for **cover()**, **uncover()**, etc. as Knuth
 - State names in AlgXStates follow Knuth
-- Single file implemetation with no classes
 
 There is quite a bit of extraneous code in the file in order to setup cell structure and produce output.
 The algorithm itself is implemented in **exact_cover_with_multiplicities_and_colors()**.
@@ -219,10 +223,12 @@ Pointer based Exact cover with multiplicities and colors found 12 solutions.
         Loop ran 11793781 times with 2514210 level transitions.
 ```
 
+Although a bit harder to read, the "old school" implementation that closely follows Knuth is signficantly faster.
+
 ## Hueristic Effect
 
 Both implementation support the "non-sharp preference heuristic" as described by Knuth.
-It makes a big difference! 
+It makes a big difference for the word problems!
 
 Stats w/o the heuristic:
 
