@@ -144,9 +144,7 @@ static void init_cells(const vector< vector<const char*> >& sequences)
 
 	}
 
-
 	//First line of the cell data:
-
 	cells = headers + nunique_items + 1;
 	memset(cells, 0xff, sizeof(Cell));
 
@@ -386,20 +384,7 @@ static void format(ostream& stream)
 // An immediate version of format, which you could call inside the debugger.
 static void print()
 {
-	ostringstream  s;
-	format(s);
-	std::string str_result = s.str();
-
-	// Outputting very large strings inside the debugger sometimes has bad results,
-	// so output a line at a time.
-
-	istringstream istream(str_result);
-	std::string line;
-	while (std::getline(istream, line))
-	{
-		const char* pc = line.c_str();
-		puts(pc);
-	}
+	format(cout);
 }
 
 ///////////////////////////////////////////////////////////////////////////////

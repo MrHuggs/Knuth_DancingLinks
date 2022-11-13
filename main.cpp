@@ -24,7 +24,7 @@ void ptr_very_large_problem();
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test strings where each sequence is a bunch of characters. This is the form
-// Knuth gives his exampes:
+// Knuth gives his examples:
 const char* small_char_problems[] =
 {
 	"a", nullptr,

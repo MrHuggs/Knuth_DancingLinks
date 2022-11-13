@@ -12,10 +12,7 @@
 #include "AlgXPointer.h"
 
 using namespace std;
-
-
 ///////////////////////////////////////////////////////////////////////////////
-
 AlgXPointer::~AlgXPointer()
 {
 	for (auto iter = itemHeaders.begin(); iter != itemHeaders.end(); iter++)

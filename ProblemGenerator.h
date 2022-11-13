@@ -42,9 +42,10 @@ public:
 
 	int operator()()
 	{
-		unsigned long long r;
+		unsigned long long r;			
 		do
 		{
+			// There is more clever way of handling the remainder issue.
 			r = rng();
 		} while (r >=  Upper);
 
